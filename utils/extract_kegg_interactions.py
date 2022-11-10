@@ -8,15 +8,17 @@ import os
 import pandas
 import networkx 
 import numpy as np
+import pandas as pd
 
 
-SPECIES = "S_cerevisiae"#"H_sapiens" #
+SPECIES = "H_sapiens" #"S_cerevisiae"#
 HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 # HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 #HOME_DIR  =  "/content/drive" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 
-MAIN_DATA_DIR = HOME_DIR+'Data'+os.sep
-DIR=MAIN_DATA_DIR+'scripts'+os.sep
+MAIN_DATA_DIR = HOME_DIR+'Data'+os.sep+SPECIES+os.sep
+DIR=HOME_DIR+'Data'+os.sep+'scripts'+os.sep
+
 # ANAT_DIRECTORY = "G:"+os.sep +"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep +"07-2020_ANAT"+os.sep#"C:" + os.sep + "Users" + os.sep + "lorenzos" + os.sep + "Google Drive" + os.sep + "SECRET-ITN"  + os.sep + "Projects" + os.sep + "07-2020_ANAT" + os.sep#
 ANAT_DIRECTORY = "G:"+os.sep +"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep +"07-2020_ANAT"+os.sep#"C:" + os.sep + "Users" + os.sep + "lorenzos" + os.sep + "Google Drive" + os.sep + "SECRET-ITN"  + os.sep + "Projects" + os.sep + "07-2020_ANAT" + os.sep#
 
@@ -42,19 +44,31 @@ ALPHA_VALUES = [0, 0.25, 0.5]
 TYPE_OF_BASE_NETWORKS = ["undir"]#,"dir"] # only using undirected networks now.
 MARGINS =[1,1.2,1.4,1.6,1.8,2]
 
-def read_alias2geneid(species, alias_column):
-    if species =="H_sapiens":
-        return None
-    elif species == "S_cerevisiae":
-        geneinfo_filename = GENE_INFO_DIRECTORY+ species + ".gene_info"
-        geneinfo = pandas.read_table(geneinfo_filename, usecols=["GeneID",alias_column])
-        
-        if len(geneinfo.columns) == 1:
-            geneinfo["GeneID_str"] = geneinfo["GeneID"].astype(str)
-            
-        return {alias: geneid for (geneid, alias) in geneinfo.itertuples(False)}
+def read_alias2geneid(GENE_INFO_DIRECTORY, species, alias_column='LocusTag', final_column='GeneID'):
+    '''LocusTag, GeneID, Symbol'''
+    geneinfo_filename = GENE_INFO_DIRECTORY+ species + ".gene_info"
+    geneinfo = pd.read_table(geneinfo_filename, usecols=[final_column,alias_column])
+    
+    if len(geneinfo.columns) == 1:
+        geneinfo["GeneID_str"] = geneinfo[final_column].astype(str)
+    if not alias_column == 'Synonyms':
+       return {series[alias_column]: series[final_column] for ind, series in geneinfo.iterrows()}
     else:
-        raise ValueError("Species not in database")
+       geneinfo = geneinfo[geneinfo['Synonyms']!= '-']
+       temp = {str(series[alias_column]) :series[final_column] for ind, series in geneinfo.iterrows()}
+       return { key: value for keys, value in temp.items() for key in keys.split('|') }
+
+    
+def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
+    synonyms_2geneid = read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES, 'Synonyms','GeneID')
+    symbol_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES, 'Symbol','GeneID')
+    alias_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES)
+    
+    symbol_2geneid.update(synonyms_2geneid)
+    symbol_2geneid.update(alias_2geneid)
+    return symbol_2geneid
+
+alias_2geneid =  readname2geneid(GENE_INFO_DIRECTORY, SPECIES)
         
 def generate_name_map(kegg_pathways):
         name_map = {}
@@ -114,7 +128,7 @@ name_map = generate_name_map(pathways)
 pathway_interactions=read_pathway_interactions(pathways, name_map)
 
 kegg_data=pandas.DataFrame.from_dict(pathway_interactions)
-kegg_data.values[[np.arange(len(kegg_data))]*2]=np.nan
+# kegg_data.values[[np.arange(len(kegg_data))]*2]=np.nan # non ho idea di cosa faccia, funge con cerevisiae levando qualche line apparentemenete senza motivo (non sono duplicati)
 edgelist=kegg_data.stack().reset_index()
 edgelist.rename(columns={'level_0':'A','level_1':'B',0:'annotation1'}, inplace=True)
 edgelist['annotation2']=0
