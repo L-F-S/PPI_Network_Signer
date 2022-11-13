@@ -2,11 +2,14 @@
 """
 v2:
     -remove DATANAME flags
-    -only use Holst as feature creation signatures
+    -only use signatures_map as feature creation signatures
     -select base network (undirected, or Directed (daniel data))
     -load and add all datasets with signing info together and add to base net
     -create features for all datasets separately
     -only AFTER, train on different datasets and decide which are worth keeping for training and validation etc.
+v3: 
+    -add human
+    -removeddirected base network option
 """
 
 import collections
@@ -23,7 +26,7 @@ from time import time
 from datetime import date
 from IPython.display import clear_output
 from joblib import Parallel, delayed
-from data_preproc2 import converttod2ddirected,get_kegg_Kpi,\
+from data_preproc3 import converttod2ddirected,get_kegg_Kpi,\
  get_protein_complexes_data, read_network_from_file, add_edges_from_labels,\
      graph_from_dataframe,\
      readname2geneid, get_ubiquitin_data, get_mutational_signatures,\
@@ -36,25 +39,17 @@ from sklearn.ensemble import RandomForestClassifier
 ##############################################################################
 #  INPUTS
 ##############################################################################
-SPECIES = "S_cerevisiae"
+# SPECIES = "S_cerevisiae" #"H_sapiens"#
+SPECIES = "H_sapiens"#
 
 HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
+# HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 #HOME_DIR  =  "/content/drive" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 
-MAIN_DATA_DIR = HOME_DIR+'Data'+os.sep
-DATA_DIR=HOME_DIR+"network_signing"+os.sep+'data'+os.sep
+DATA_DIR = HOME_DIR+'Data'+os.sep+SPECIES+os.sep
 DIRECTED_DIR = HOME_DIR+"network_signing"+os.sep
 OUTDIR=DIRECTED_DIR+'output'+os.sep
-#FEATURES_DIR = HOME_DIR+"network_signing"+os.sep+"features_creation_data"+os.sep
-HOLSTEGE_DIR= MAIN_DATA_DIR+os.sep+'Holstege_S1Data'+os.sep
 IMG_DIR=HOME_DIR+"network_signing"+os.sep+'imgs'+os.sep
-
-DATANAME= 'scUndirHol_'+str(date.today()) #'SchUndirHol_'+str(date.today())  # Sch: kpi ppi, sc, only ppi 'scnewD2DHolclean_2022-03-02'
-DATASFX='.csv'
-net_type='undir' #CHANGE HERE to 'dir' or 'undir danieldir'
-if 'Und' in DATANAME:
-    NET_FILENAME=HOME_DIR+"Data"+os.sep+"S_cerevisiae.net"
 
 # Propagation parameters:
 PROPAGATE_ALPHA = 0.6
@@ -62,49 +57,47 @@ PROPAGATE_EPSILON = 1e-5
 PROPAGATE_ITERATIONS = 100
 
 # Initioalize dictionary of aliases
-alias_2geneid =  readname2geneid(MAIN_DATA_DIR, SPECIES)
+alias_2geneid =  readname2geneid(DATA_DIR, SPECIES)
 
 ##############################################################################
 # ## Get training sets:
 ##############################################################################
-
-kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(DATA_DIR,alias_2geneid) #TODO why is this so fucking slow? 
-pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(MAIN_DATA_DIR, alias_2geneid)
-ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(MAIN_DATA_DIR, alias_2geneid)
+#%%
+if SPECIES == 'S_cerevisiae': #refactror
+    kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(DATA_DIR,alias_2geneid) #TODO why is this so fucking slow? 
+    pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(DATA_DIR, alias_2geneid)
+    ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(DATA_DIR, alias_2geneid)
 #####
 #%%
 # write training labels:
-write(OUTDIR, kegg_Kpi_labels,pcomp_labels,ubiq_labels )
+# write(OUTDIR, kegg_Kpi_labels,pcomp_labels,ubiq_labels )
 #%%
-#TDIDI make  the multi index into an index of tuples MAYBE? cos the original is like that
-
-#TEMP: to check quanto fa schifo scud
-    # in scud data: ubiq substrate: 'sytem_name'
-    # e3: 1) substrate receptor 2 e3 subclass 3) e3 class
-#     #ma quanti ce ne sono davvero ? printiamoli, e sono pochissimi
-# tempdatadir=HOME_DIR+'Data'+os.sep
-# ubiq_labels = pd.read_csv(tempdatadir+"SCUD2009_substrate.tsv", sep="\t",)
-# print('e3 sub', ubiq_labels['E3_subclass'].unique())
-# print('sub receptor', ubiq_labels['E3_subclass'].unique())
-
+signatures_map = get_mutational_signatures(DATA_DIR, alias_2geneid, SPECIES)
+#ann.X is the heatmap
+#ann.obs is metadata on rows (y axis)
+# ann. var is metadata on columns (x axis)
+# are columns the mutations? i think so, they are the variable variables
+signatures_map.X
+final = pd.DataFrame(signatures_map.X, columns=)
+#%%
 print("\n>>>>>>> loading base network to propagte on:")
-network=read_network_from_file(NET_FILENAME, net_type)
-if net_type == 'danieldir':
-    threshold = 0.9
-    network = converttod2ddirected(network, threshold)
+network=read_network_from_file(DATA_DIR, SPECIES)
 print('lenght of network', network.shape[0])
-graph = graph_from_dataframe(network, net_type)
+graph = graph_from_dataframe(network)
 #ADD edges from training labels which are not present:
-
-graph = add_edges_from_labels(graph, kegg_Kpi_edge_weights, flag='kegg_kpi')
-graph = add_edges_from_labels(graph, pcomp_edge_weights, flag='p_complex') 
-graph = add_edges_from_labels(graph, ubiq_edge_weights, flag='ubiq')
+if SPECIES == 'S_cerevisiae': #REfactor
+    graph = add_edges_from_labels(graph, kegg_Kpi_edge_weights, flag='kegg_kpi')
+    graph = add_edges_from_labels(graph, pcomp_edge_weights, flag='p_complex') 
+    graph = add_edges_from_labels(graph, ubiq_edge_weights, flag='ubiq')
+    
 genes = sorted(graph.nodes)
 # generate validation features
 
 
-holst = get_mutational_signatures(HOLSTEGE_DIR, MAIN_DATA_DIR, alias_2geneid)
-plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(holst, genes)
+signatures_map = get_mutational_signatures(DATA_DIR, alias_2geneid, SPECIES)
+plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(signatures_map, genes)
+kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(DATA_DIR,SPECIES,alias_2geneid) #TODO why is this so fucking slow? e refactor e' qui di passaggio
+
 
 print("\n--------------- DATA PREPROCESSED SUCCESFULLY---------------")
 print('- Positive knockout experiment targets:', len(plus_targets_of_deletion),'\n- Negative knockout experiment targets:',len(minus_targets_of_deletion))
