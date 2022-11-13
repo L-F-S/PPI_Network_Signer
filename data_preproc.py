@@ -182,50 +182,50 @@ def translate_multi_ind(data, alias_2geneid, v=True):
     data.index=index
     return data
 
-def translate_axes(knockdown_map, alias_2geneid, axis='all'):
+def translate_axes(perturbations_map, alias_2geneid, axis='all'):
     """
     translates column names and row names into entrex geneIDs
     input:
-        knockdown_map: pd.DataFrame
+        perturbations_map: pd.DataFrame
         alias_2geneid: dictionary
         axis: str ['row', 'col', 'all']
     output:
-        knockdown_map with translated intexes
+        perturbations_map with translated intexes
     """
     
     if axis=='row' or axis=='all':
         index_map={}
         nr=0
         rows_to_drop=[]
-        for oldname in knockdown_map.index:
+        for oldname in perturbations_map.index:
             try:
                 index_map[oldname]=alias_2geneid[oldname]
             except:
                 nr+=1
                 rows_to_drop.append(oldname)
         print('removing',nr,'target transcripts not fonud in gene_info dictionary')
-        knockdown_map.drop(rows_to_drop, inplace=True)
-        knockdown_map.rename(index=index_map, inplace=True)
+        perturbations_map.drop(rows_to_drop, inplace=True)
+        perturbations_map.rename(index=index_map, inplace=True)
     
     if axis=='col' or axis=='all':
         column_map = {}
         nc=0
         cols_to_drop=[]
-        for oldname in list(knockdown_map.columns):
+        for oldname in list(perturbations_map.columns):
             try:
                 column_map[oldname] = alias_2geneid[oldname]
             except:
                 nc+=1
                 cols_to_drop.append(oldname)
         print('removing',nc,'knockdown/perturbed genes not fonud in gene_info dictionary')
-        knockdown_map.drop(cols_to_drop, axis=1, inplace=True)
-        knockdown_map.rename(columns=column_map, inplace=True)
-    return knockdown_map
+        perturbations_map.drop(cols_to_drop, axis=1, inplace=True)
+        perturbations_map.rename(columns=column_map, inplace=True)
+    return perturbations_map
 
-def get_knockdown_map(data_dir, alias_2geneid,species):
+def get_perturbations_map(data_dir, alias_2geneid,species):
     """
     output:
-        knockdown_map: pd.DataFrame column names: entrez geneIDs of 
+        perturbations_map: pd.DataFrame column names: entrez geneIDs of 
             knockout/downregulated/mutated genes  
             index names: entrez geneID of affected genes.
             column: expression/fold change for that mutation
@@ -233,10 +233,10 @@ def get_knockdown_map(data_dir, alias_2geneid,species):
     """
     print(">>>>>> getting knockout pairs set:")
     if species == "S_cerevisiae":
-        knockdown_map=pd.read_csv(data_dir+'mutational_signatures_Holstege.cdt',sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
-        knockdown_map.drop(knockdown_map.columns[range(6)],axis=1,inplace=True)
-        print('initial experiments before translation: ', knockdown_map.shape[1])
-        print('initial affected genes before translation: ', knockdown_map.shape[0])
+        perturbations_map=pd.read_csv(data_dir+'mutational_signatures_Holstege.cdt',sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
+        perturbations_map.drop(perturbations_map.columns[range(6)],axis=1,inplace=True)
+        print('initial experiments before translation: ', perturbations_map.shape[1])
+        print('initial affected genes before translation: ', perturbations_map.shape[0])
         #02 TODO 13/11 remove transcription factors from knockouts (see mail with roded as to why)
         # pensavo di averlo fatto ma sto codice non fa nulla
         # def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
@@ -251,7 +251,7 @@ def get_knockdown_map(data_dir, alias_2geneid,species):
         # asd=read_transcription_annotations_from_GFF(data_dir+'yeastannotation.gff')
         # n=0
     
-        # for knockout_gene in knockdown_map.columns:
+        # for knockout_gene in perturbations_map.columns:
         #     if knockout_gene in asd.keys():
         #         n+=1
     
@@ -265,14 +265,14 @@ def get_knockdown_map(data_dir, alias_2geneid,species):
         colnames=anndataobject.var.gene_name
         rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
         
-        knockdown_map = pd.DataFrame(data, columns=colnames, index=rownames)
-        knockdown_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
+        perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
+        perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
 
-    knockdown_map=translate_axes(knockdown_map, alias_2geneid)
-    print('Knockdown?perturbation experiments: ', knockdown_map.shape[1])
-    print('Affected genes: ', knockdown_map.shape[0])
+    perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+    print('Knockdown?perturbation experiments: ', perturbations_map.shape[1])
+    print('Affected genes: ', perturbations_map.shape[0])
 
-    return knockdown_map 
+    return perturbations_map 
 
 def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See ref. for threshold value
 
