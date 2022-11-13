@@ -102,7 +102,7 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     label_kegg = pd.Series(data=list(label[2]), index=label.index)
     label_kegg.name = 2 
     if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
-        label_kegg = translate_ind(label_kegg, alias_2geneid)
+        label_kegg = translate_multi_ind(label_kegg, alias_2geneid)
     print('KEGG lables', label_kegg.value_counts())
     ## from Patkar and Sharan 2018
     if species == 'S_cerevisiae': #todo temporary
@@ -112,7 +112,7 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
         # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
         label_kpi_s = pd.Series(data=list(label_kpi[2]), index=label_kpi.index)
         label_kpi_s.name = 2 
-        label_kpi_s = translate_ind(label_kpi_s, alias_2geneid)
+        label_kpi_s = translate_multi_ind(label_kpi_s, alias_2geneid)
         print('kpi lables', label_kpi_s.value_counts())
         ##
         label=pd.concat([label,label_kpi])
@@ -122,8 +122,8 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     edge_weights.name=2
     if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
         #'translating indexes:'
-        label = translate_ind(label, alias_2geneid)
-        edge_weights = translate_ind(edge_weights, alias_2geneid)
+        label = translate_multi_ind(label, alias_2geneid)
+        edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
     #'Removing duplicates'
     label=remove_dupes(label)
     edge_weights=edge_weights.loc[label.index]
@@ -154,7 +154,7 @@ def get_targets(df):
     return plus_targets_of_deletion, minus_targets_of_deletion
 
 
-def translate_ind(data, alias_2geneid, v=True):
+def translate_multi_ind(data, alias_2geneid, v=True):
     '''data can be a pd.Series or pd.DataFrame, with tuple MultiIndex'''
     index = []
     not_found=[]
@@ -181,6 +181,41 @@ def translate_ind(data, alias_2geneid, v=True):
     data=pd.Series(data[2])
     data.index=index
     return data
+
+def translate_axes(signatures_map, alias_2geneid, axis='all'):
+    """
+    translates column names and row names into entrex geneIDs
+    input:
+        signatures_map: pd.DataFrame
+        alias_2geneid: dictionary
+        axis: str ['row', 'col', 'all']
+    output:
+        signatures_map with translated intexes
+    """
+    
+    index_map={}
+    nr=0
+    for oldname in signatures_map.index:
+        try:
+            index_map[oldname]=alias_2geneid[oldname]
+        except:
+            nr+=1
+            signatures_map.drop(oldname, inplace=True)
+    print('removing',nr,'target transcripts not fonud in gene_info dictionary')
+    signatures_map.rename(index=index_map, inplace=True)
+    
+    column_map = {}
+    nc=0
+    for oldname in signatures_map.columns:
+        try:
+            column_map[oldname] = alias_2geneid[oldname]
+        except:
+            nc+=1
+            signatures_map.drop(oldname, inplace=True)
+    print('removing',nc,'knockdown/perturbed genes not fonud in gene_info dictionary')
+    signatures_map.rename(columns=column_map, inplace=True)
+    return signatures_map
+
 def get_mutational_signatures(data_dir, alias_2geneid,species):
     """
     output:
@@ -196,42 +231,40 @@ def get_mutational_signatures(data_dir, alias_2geneid,species):
         signatures_map.drop(signatures_map.columns[range(6)],axis=1,inplace=True)
         print('initial experiments before translation: ', signatures_map.shape[1])
         print('initial affected genes before translation: ', signatures_map.shape[0])
-        #02 remove transcription factors from knockouts (see mail with roded as to why)
-        def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
-            functional_gene_dict = collections.defaultdict(list)
-            with open(annotation_file_dir, 'r') as f:
-                for line in f:
-                    if line[0] != '#':
-                        if 'transcription factor' in line:
-                            functional_gene_dict[line[2]].append(1)
-            return functional_gene_dict
+        #02 TODO 13/11 remove transcription factors from knockouts (see mail with roded as to why)
+        # pensavo di averlo fatto ma sto codice non fa nulla
+        # def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
+        #     functional_gene_dict = collections.defaultdict(list)
+        #     with open(annotation_file_dir, 'r') as f:
+        #         for line in f:
+        #             if line[0] != '#':
+        #                 if 'transcription factor' in line:
+        #                     functional_gene_dict[line[2]].append(1)
+        #     return functional_gene_dict
     
-        asd=read_transcription_annotations_from_GFF(data_dir+'yeastannotation.gff')
-        n=0
+        # asd=read_transcription_annotations_from_GFF(data_dir+'yeastannotation.gff')
+        # n=0
     
-        for knockout_gene in signatures_map.columns:
-            if knockout_gene in asd.keys():
-                n+=1
+        # for knockout_gene in signatures_map.columns:
+        #     if knockout_gene in asd.keys():
+        #         n+=1
     
-        column_map = {}
-        not_found=[]
-        for oldname in signatures_map.columns:
-            column_map[oldname] = alias_2geneid[oldname]
-        index_map= {}
-        for oldname in signatures_map.index:
-            try:
-                index_map[oldname] = alias_2geneid[oldname]
-            except:
-                not_found.append(oldname)
-        print("number of targets not found in dictionary:", len(not_found))
-        for dubious_orf in not_found:
-            signatures_map.drop(dubious_orf, inplace= True)
-            signatures_map.rename(columns=column_map, index=index_map, inplace=True)
+       
+        signatures_map=translate_axes(signatures_map, alias_2geneid)
         print('initial experiments: ', signatures_map.shape[1])
     
     if species == "H_sapiens":
-        signatures_map=anndata.read_h5ad(data_dir+"K562_gwps_normalized_bulk_01.h5ad")
-    
+        anndataobject=anndata.read_h5ad(data_dir+"K562_gwps_normalized_bulk_01.h5ad")
+        data=anndataobject.X
+        colnames=anndataobject.var.gene_name
+        rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
+        print('shape:',data.shape)
+        signatures_map = pd.DataFrame(data, columns=colnames, index=rownames)
+        # drop rows
+        signatures_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
+        translate_index(signatures_map, alias_2geneid)
+        
+
     return signatures_map 
 
 def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See ref. for threshold value
