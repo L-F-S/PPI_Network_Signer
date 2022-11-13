@@ -34,19 +34,27 @@ def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
     synonyms_2geneid = read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES, 'Synonyms','GeneID')
     symbol_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES, 'Symbol','GeneID')
     alias_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES)
+    geneid_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES,'GeneID','GeneID')
+    strgeneid_2geneid = {str(key):value for (key,value) in geneid_2geneid.items()}
     
     symbol_2geneid.update(synonyms_2geneid)
     symbol_2geneid.update(alias_2geneid)
+    symbol_2geneid.update(geneid_2geneid)
+    symbol_2geneid.update(strgeneid_2geneid)
     return symbol_2geneid
     # names_2geneid=synonyms_2geneid | symbol_2geneid # dictionary concatenation operand. works with python 3.9+
     # return names_2geneid | alias_2geneid 
 
-def get_ubiquitin_data(data_dir, alias_2geneid):
+def get_ubiquitin_data(data_dir,  species, alias_2geneid):
     print("\n>>>>>>> getting ubiquitin dataset:")
 
     ubiq_labels = pd.read_csv(data_dir+"UbiNet2E3_substrate_interactions.tsv", sep="\t", usecols=['E3_ID','SUB_ID','E3_ORGANISM','SUB_ORGANISM'])
-    ubiq_labels = ubiq_labels[ubiq_labels['E3_ORGANISM'].str.startswith('Saccharomyces')]
-    ubiq_labels = ubiq_labels[ubiq_labels['SUB_ORGANISM'].str.startswith('Saccharomyces')].reset_index(drop=True)
+    if species == 'S_cerevisiae':
+        sp_label = 'Saccharomyces cerevisiae'
+    if species == 'H_sapiens':
+        sp_label = 'Homo sapiens'
+    ubiq_labels = ubiq_labels[ubiq_labels['E3_ORGANISM'].str.startswith(sp_label)]
+    ubiq_labels = ubiq_labels[ubiq_labels['SUB_ORGANISM'].str.startswith(sp_label)].reset_index(drop=True)
     print(ubiq_labels.shape, 'initial interactions')
     ubiq_labels = ubiq_labels[ubiq_labels['E3_ID']!='-']
     def alias_of(dic, x):
@@ -93,17 +101,20 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     label=pd.read_csv(data_dir + species + "_kegg_signed_ppi.txt", sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
     label=label[label[3]!='indirect effect']
     label=label[label[2]!='indirect effect']
+    label=label[label[2]!='state change']
     label=label[label[2]!='repression'] #transcription factors
-    label[2].replace({"activation":0,"inhibition":1, 'binding/association':0, 'expression':0, 'dissociation':1}, inplace=True)
+    label[2].replace({"activation":0,"inhibition":1, 'binding/association':0,\
+                      'expression':0, 'dissociation':1, 'phosphorylation': 0, \
+                          'ubiquitination':1}, inplace=True)
         
     label.drop(axis=1, labels=3, inplace=True)
     label[3] = 0.8
-     # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
-    label_kegg = pd.Series(data=list(label[2]), index=label.index)
-    label_kegg.name = 2 
-    if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
-        label_kegg = translate_multi_ind(label_kegg, alias_2geneid)
-    print('KEGG lables', label_kegg.value_counts())
+    #  # 24 07 TODO aggiunto ste 4 righe per contare quanti sono i signs da qui
+    # ma sn ridondanti, xke sono la copia di cosa sucede in label. le rimuovi quando disaccoppi i due dataset keg e kpi, perdio
+    # label_kegg = pd.Series(data=list(label[2]), index=label.index)
+    # label_kegg.name = 2 
+    # label_kegg = translate_multi_ind(label, alias_2geneid)
+    # print('KEGG lables', label_kegg.value_counts())
     ## from Patkar and Sharan 2018
     if species == 'S_cerevisiae': #todo temporary
         print('training edges from kpi:', len(label))
@@ -120,10 +131,10 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
     edge_weights.name=2
-    if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
+    # if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
         #'translating indexes:'
-        label = translate_multi_ind(label, alias_2geneid)
-        edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
+    label = translate_multi_ind(label, alias_2geneid)
+    edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
     #'Removing duplicates'
     label=remove_dupes(label)
     edge_weights=edge_weights.loc[label.index]
@@ -275,7 +286,7 @@ def get_perturbations_map(data_dir, alias_2geneid,species):
     return perturbations_map 
 
 def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See ref. for threshold value
-
+# todo, refactor: this must be faster cos with human it's super slow. todo. threshold for human??
     plus_targets_of_deletion={}
     minus_targets_of_deletion={}
     print('filter out expression threshold')
