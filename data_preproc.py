@@ -8,19 +8,13 @@ import pandas as pd
 import collections
 import networkx
 import itertools
+import os
+import anndata
 
 ###############################################################################
 # READ, FILTER AND PREPARE DATA
 ###############################################################################
-
-# def name2id(gene, alias_2geneid, symbol2geneid):
-#     try:
-#         return alias_2geneid[gene]
-#     except:
-#         return symbol2geneid[gene]
-#     raise ValueError('gene '+ str(gene) + ' not found')
-
-    
+ 
 def read_alias2geneid(GENE_INFO_DIRECTORY, species, alias_column='LocusTag', final_column='GeneID'):
     '''LocusTag, GeneID, Symbol'''
     geneinfo_filename = GENE_INFO_DIRECTORY+ species + ".gene_info"
@@ -47,10 +41,10 @@ def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
     # names_2geneid=synonyms_2geneid | symbol_2geneid # dictionary concatenation operand. works with python 3.9+
     # return names_2geneid | alias_2geneid 
 
-def get_ubiquitin_data(MAIN_DATA_DIR, alias_2geneid):
+def get_ubiquitin_data(data_dir, alias_2geneid):
     print("\n>>>>>>> getting ubiquitin dataset:")
 
-    ubiq_labels = pd.read_csv(MAIN_DATA_DIR+"UbiNet2E3_substrate_interactions.tsv", sep="\t", usecols=['E3_ID','SUB_ID','E3_ORGANISM','SUB_ORGANISM'])
+    ubiq_labels = pd.read_csv(data_dir+"UbiNet2E3_substrate_interactions.tsv", sep="\t", usecols=['E3_ID','SUB_ID','E3_ORGANISM','SUB_ORGANISM'])
     ubiq_labels = ubiq_labels[ubiq_labels['E3_ORGANISM'].str.startswith('Saccharomyces')]
     ubiq_labels = ubiq_labels[ubiq_labels['SUB_ORGANISM'].str.startswith('Saccharomyces')].reset_index(drop=True)
     print(ubiq_labels.shape, 'initial interactions')
@@ -71,13 +65,13 @@ def get_ubiquitin_data(MAIN_DATA_DIR, alias_2geneid):
     print(ubiq_labels.shape, 'final interactions')
     return ubiq_labels[2], ubiq_edge_weights
 
-def get_protein_complexes_data(DATA_DIR, alias_2geneid):
+def get_protein_complexes_data(data_dir, alias_2geneid):
     '''
     Load dataset of protein complexes and use them as undirected positive interacctions.
     every undirected interaction is represented as two directed interactions in opposite directions
     '''
     print("\n>>>>>>> getting protein complex dataset:")
-    complexes_label = pd.read_csv(DATA_DIR+"cyc2008.txt", sep="\t",)
+    complexes_label = pd.read_csv(data_dir+"cyc2008.txt", sep="\t",)
    
     complexesgroupby = complexes_label.groupby('Complex').apply(
         lambda x : list(itertools.combinations(x['Name'], 2)))
@@ -93,10 +87,10 @@ def get_protein_complexes_data(DATA_DIR, alias_2geneid):
     complexes_weights=complexes_weights.loc[complexes_label.index]
     return complexes_label, complexes_weights
 
-def get_kegg_Kpi(DATA_DIR,  alias_2geneid): #TODO magari dividilo in due cosi printa tutto in due, e tutto diventa diviso in due, ogni dataset e' separato. qst vuol dire anche che aggiungi una flag quando li mergi e fai un remove dupes generale, in cui c''e 'una gerarchi di flags per decidere quale tenere (kegg->ubiq->kpi->pcomplex).
+def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due cosi printa tutto in due, e tutto diventa diviso in due, ogni dataset e' separato. qst vuol dire anche che aggiungi una flag quando li mergi e fai un remove dupes generale, in cui c''e 'una gerarchi di flags per decidere quale tenere (kegg->ubiq->kpi->pcomplex).
     print("\n>>>>>>> getting kegg and kpi sets:")
-    # from Patkar and Sharan 2018
-    label=pd.read_csv(DATA_DIR + "S_cerevisiae_kegg_signed_ppi.txt", sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
+    # PPI data generated with extract_kegg_interactions.py
+    label=pd.read_csv(data_dir + species + "_kegg_signed_ppi.txt", sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
     label=label[label[3]!='indirect effect']
     label=label[label[2]!='indirect effect']
     label=label[label[2]!='repression'] #transcription factors
@@ -107,41 +101,44 @@ def get_kegg_Kpi(DATA_DIR,  alias_2geneid): #TODO magari dividilo in due cosi pr
      # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
     label_kegg = pd.Series(data=list(label[2]), index=label.index)
     label_kegg.name = 2 
-    label_kegg = translate_ind(label_kegg, alias_2geneid)
-    print('kegg lables', label_kegg.value_counts())
-    ##
-    print('training edges from KEGG:', len(label))
-    label_kpi=pd.read_csv(DATA_DIR+"yeast_kpi.txt", sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
-    label_kpi[3] = 0.6
-    # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
-    label_kpi_s = pd.Series(data=list(label_kpi[2]), index=label_kpi.index)
-    label_kpi_s.name = 2 
-    label_kpi_s = translate_ind(label_kpi_s, alias_2geneid)
-    print('kpi lables', label_kpi_s.value_counts())
-    ##
-    label=pd.concat([label,label_kpi])
+    if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
+        label_kegg = translate_ind(label_kegg, alias_2geneid)
+    print('KEGG lables', label_kegg.value_counts())
+    ## from Patkar and Sharan 2018
+    if species == 'S_cerevisiae': #todo temporary
+        print('training edges from kpi:', len(label))
+        label_kpi=pd.read_csv(data_dir+"yeast_kpi.txt", sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
+        label_kpi[3] = 0.6
+        # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
+        label_kpi_s = pd.Series(data=list(label_kpi[2]), index=label_kpi.index)
+        label_kpi_s.name = 2 
+        label_kpi_s = translate_ind(label_kpi_s, alias_2geneid)
+        print('kpi lables', label_kpi_s.value_counts())
+        ##
+        label=pd.concat([label,label_kpi])
     edge_weights=pd.Series(data=list(label[3]), index=label.index)
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
     edge_weights.name=2
-    #'translating indexes:'
-    label = translate_ind(label, alias_2geneid)
-    edge_weights = translate_ind(edge_weights, alias_2geneid)
+    if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
+        #'translating indexes:'
+        label = translate_ind(label, alias_2geneid)
+        edge_weights = translate_ind(edge_weights, alias_2geneid)
     #'Removing duplicates'
     label=remove_dupes(label)
     edge_weights=edge_weights.loc[label.index]
     return label, edge_weights
 
-def wrapper_get_training_data(DATA_DIR, alias_2geneid,datasets):
+def wrapper_get_training_data(data_dir, alias_2geneid,datasets):
     labels_of = {}
     weights_of = {}
     for dataset_name in datasets:
         if dataset_name == 'kegg_kpi':
-            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(DATA_DIR,alias_2geneid) 
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(data_dir,alias_2geneid) 
         if dataset_name == 'p_complex':
-            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(DATA_DIR,alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(data_dir,alias_2geneid)
         if dataset_name == 'ubiq':
-            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(DATA_DIR, alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(data_dir, alias_2geneid)
     return labels_of, weights_of
 
 def get_targets(df):
@@ -184,45 +181,58 @@ def translate_ind(data, alias_2geneid, v=True):
     data=pd.Series(data[2])
     data.index=index
     return data
-def get_mutational_signatures(HOLSTEGE_DIR, MAIN_DATA_DIR, alias_2geneid):
+def get_mutational_signatures(data_dir, alias_2geneid,species):
+    """
+    output:
+        signatures_map: pd.DataFrame column names: entrez geneIDs of 
+            knockout/downregulated/mutated genes  
+            index names: entrez geneID of affected genes.
+            column: expression/fold change for that mutation
+            row: expression/fold change of given gene across all mutations
+    """
     print(">>>>>> getting knockout pairs set:")
-    holst=pd.read_csv(HOLSTEGE_DIR+'Data_S1.cdt',sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
-    holst.drop(holst.columns[range(6)],axis=1,inplace=True)
-    print('initial experiments before translation: ', holst.shape[1])
-    print('initial affected genes before translation: ', holst.shape[0])
-    #02 remove transcription factors from knockouts (see mail with roded as to why)
-    def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
-        functional_gene_dict = collections.defaultdict(list)
-        with open(annotation_file_dir, 'r') as f:
-            for line in f:
-                if line[0] != '#':
-                    if 'transcription factor' in line:
-                        functional_gene_dict[line[2]].append(1)
-        return functional_gene_dict
-
-    asd=read_transcription_annotations_from_GFF(MAIN_DATA_DIR+'yeastannotation.gff')
-    n=0
-
-    for knockout_gene in holst.columns:
-        if knockout_gene in asd.keys():
-            n+=1
-
-    column_map = {}
-    not_found=[]
-    for oldname in holst.columns:
-        column_map[oldname] = alias_2geneid[oldname]
-    index_map= {}
-    for oldname in holst.index:
-        try:
-            index_map[oldname] = alias_2geneid[oldname]
-        except:
-            not_found.append(oldname)
-    print("number of targets not found in dictionary:", len(not_found))
-    for dubious_orf in not_found:
-        holst.drop(dubious_orf, inplace= True)
-        holst.rename(columns=column_map, index=index_map, inplace=True)
-    print('initial experiments: ', holst.shape[1])
-    return holst
+    if species == "S_cerevisiae":
+        signatures_map=pd.read_csv(data_dir+'mutational_signatures_Holstege.cdt',sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
+        signatures_map.drop(signatures_map.columns[range(6)],axis=1,inplace=True)
+        print('initial experiments before translation: ', signatures_map.shape[1])
+        print('initial affected genes before translation: ', signatures_map.shape[0])
+        #02 remove transcription factors from knockouts (see mail with roded as to why)
+        def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
+            functional_gene_dict = collections.defaultdict(list)
+            with open(annotation_file_dir, 'r') as f:
+                for line in f:
+                    if line[0] != '#':
+                        if 'transcription factor' in line:
+                            functional_gene_dict[line[2]].append(1)
+            return functional_gene_dict
+    
+        asd=read_transcription_annotations_from_GFF(data_dir+'yeastannotation.gff')
+        n=0
+    
+        for knockout_gene in signatures_map.columns:
+            if knockout_gene in asd.keys():
+                n+=1
+    
+        column_map = {}
+        not_found=[]
+        for oldname in signatures_map.columns:
+            column_map[oldname] = alias_2geneid[oldname]
+        index_map= {}
+        for oldname in signatures_map.index:
+            try:
+                index_map[oldname] = alias_2geneid[oldname]
+            except:
+                not_found.append(oldname)
+        print("number of targets not found in dictionary:", len(not_found))
+        for dubious_orf in not_found:
+            signatures_map.drop(dubious_orf, inplace= True)
+            signatures_map.rename(columns=column_map, index=index_map, inplace=True)
+        print('initial experiments: ', signatures_map.shape[1])
+    
+    if species == "H_sapiens":
+        signatures_map=anndata.read_h5ad(data_dir+"K562_gwps_normalized_bulk_01.h5ad")
+    
+    return signatures_map 
 
 def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See ref. for threshold value
 
@@ -240,31 +250,31 @@ def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See
 
 
 
-def read_network_from_file(filename, net_type):
+def read_network_from_file(network_dir, species):
     """
     input:
-        filename: str
-        net_type: str ['dir'.'undir', 'danieldir']
-        output: pd.DataFrame: index: tuple, columns: confidence, directed
+        network_dir: str
+        species: str ['S_cerevisiae', 'H_sapiens']
+    output:
+        pd.DataFrame: index: tuple, columns: confidence, directed
     """
-    if net_type == 'dir':
-        return  pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,4]), header=None)
-    elif net_type == 'undir':
-        return pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,3]), header=None)
-    elif net_type == 'danieldir':
-        return pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,3]), header=None, dtype={3:float})
-    else:
-        raise ValueError('Specify if network is directed (dir) or undirected (undir)')
+    filename=network_dir+os.sep+species+'.net'
+    return pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,3]), header=None)
+
         
-        
-def graph_from_dataframe(dataframe, net_type):
-    """input: pd.DataFrame, str ['dir'.'undir']
-        output: networkx.graph
+def graph_from_dataframe(dataframe, net_type="undir"):
+    """
+    input: 
+        dataframe: pd.DataFrame
+        net_type: str ['dir', 'undir'] current version only uses undirected networks
+    output:
+        networkx.graph
+    v3: treating the input as undirected graph. For the directed case, see v2
     """
     if net_type=="undir":
-            return networkx.from_pandas_edgelist(dataframe.reset_index().rename(columns={2:'weight'}), 0,1,'weight')
+        return networkx.from_pandas_edgelist(dataframe.reset_index().rename(columns={2:'weight'}), 0,1,'weight')
 
-    elif (net_type=="dir") or (net_type=='danieldir'):
+    elif net_type=="dir":
         graph = networkx.DiGraph()
         for (source, target, confidence, directed) in dataframe.reset_index().itertuples(False):
             graph.add_edge(source, target, weight=confidence)
