@@ -5,3 +5,4 @@ TODO: in un futuro lontano che renderai la repo pubblica, controlla che utils/ex
 
 
 tuttto il data preproc in realta/ lo dovresti eliminare e  o mettere in un altra repo che si chiama come downloaddare un sacco di datasets bvelocemente
+in cui metti anche : depod_scraping.py
