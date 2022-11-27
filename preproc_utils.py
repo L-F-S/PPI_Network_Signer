@@ -10,6 +10,7 @@ import networkx
 import itertools
 import os
 import anndata
+from datetime import date
 
 ###############################################################################
 # READ, FILTER AND PREPARE DATA
@@ -44,11 +45,51 @@ def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
     return symbol_2geneid
     # names_2geneid=synonyms_2geneid | symbol_2geneid # dictionary concatenation operand. works with python 3.9+
     # return names_2geneid | alias_2geneid 
+def get_PSP_data(filename,  species, alias_2geneid):
+    data = pd.read_csv(filename, sep='\t', skiprows=[0,1,2], header=None, index_col=(1,4), encoding_errors='ignore')
+    if not species =='H_sapiens':
+        raise ValueError('data only avaliable for human')
+    data=data[data[8]=='human']
+    data=data[data[3]=='human']
+    data.rename_axis(index={1:0,4:1}, inplace=True)
+    labels = pd.Series(data=0, index=data.index)
+    labels.name=2
+    labels = translate_multi_ind(labels, alias_2geneid)
+    #'Removing duplicates'
+    labels=remove_dupes(labels)
+    weights = pd.Series(data=0.8, index=labels.index)
+    weights.name=2
+    return labels, weights
 
-def get_ubiquitin_data(data_dir,  species, alias_2geneid):
+def get_kegg_data(filename,  species, alias_2geneid):
+    label=pd.read_csv(filename, sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
+    label=label[label[3]!='indirect effect']
+    label=label[label[2]!='indirect effect']
+    label=label[label[2]!='state change']
+    label=label[label[2]!='repression'] #transcription factors
+    label[2].replace({"activation":0,"inhibition":1, 'binding/association':0,\
+                      'expression':0, 'dissociation':1, 'phosphorylation': 0, \
+                          'ubiquitination':1}, inplace=True)
+        
+    label.drop(axis=1, labels=3, inplace=True)
+    label[3] = 0.8
+    edge_weights=pd.Series(data=list(label[3]), index=label.index)
+    label = pd.Series(data=list(label[2]), index=label.index)
+    label.name = 2 
+    edge_weights.name=2
+    # if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
+        #'translating indexes:'
+    label = translate_multi_ind(label, alias_2geneid)
+    edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
+    #'Removing duplicates'
+    label=remove_dupes(label)
+    edge_weights=edge_weights.loc[label.index]
+    return label, edge_weights
+
+def get_ubiquitin_data(filename,  species, alias_2geneid):
     print("\n>>>>>>> getting ubiquitin dataset:")
 
-    ubiq_labels = pd.read_csv(data_dir+"UbiNet2E3_substrate_interactions.tsv", sep="\t", usecols=['E3_ID','SUB_ID','E3_ORGANISM','SUB_ORGANISM'])
+    ubiq_labels = pd.read_csv(filename, sep="\t", usecols=['E3_ID','SUB_ID','E3_ORGANISM','SUB_ORGANISM'])
     if species == 'S_cerevisiae':
         sp_label = 'Saccharomyces cerevisiae'
     if species == 'H_sapiens':
@@ -140,18 +181,46 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     edge_weights=edge_weights.loc[label.index]
     return label, edge_weights
 
-def wrapper_get_training_data(data_dir, alias_2geneid,datasets):
+def preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datasets, SPECIES):
     labels_of = {}
     weights_of = {}
     for dataset_name in datasets:
         if dataset_name == 'kegg_kpi':
-            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(data_dir,alias_2geneid) 
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
         if dataset_name == 'p_complex':
-            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(data_dir,alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(data_dir+SPECIES+os.sep,alias_2geneid)
         if dataset_name == 'ubiq':
-            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(data_dir, alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(data_dir+'UbiNet2E3_substrate_interactions.tsv', SPECIES, alias_2geneid)
     return labels_of, weights_of
 
+def preprocess_human_signed_datasets(datanames,species,  alias_2geneid): #TODO change from load to preprocess, and make a load to load preprocessed data
+    '''
+    INPUTS:
+            datanames: dict of {dataname: absolute_path] strings
+            species: str species name
+            alias_2geneid: dictionary of geneID mappings
+    OUTPUT:
+        None, upgrades signed dataset
+    '''
+    signed_datasets = {}
+    signed_datasets_edge_weights = {}
+    for dataset, filename in datanames.items():
+        if dataset == 'ubinet2':
+           labels, edge_weights = get_ubiquitin_data(filename,  species, alias_2geneid)
+        elif dataset == 'PSP':
+            labels, edge_weights = get_PSP_data(filename,  species, alias_2geneid)
+        elif dataset == 'kegg':
+            labels, edge_weights = get_kegg_data(filename,  species, alias_2geneid)
+        signed_datasets[dataset] = labels
+        signed_datasets_edge_weights[dataset] = edge_weights
+    return signed_datasets, signed_datasets_edge_weights
+
+def preprocess_signed_datasets(data_dir, datanames,species,  alias_2geneid):
+    if species == 'H_sapiens':
+        signed_datasets, signed_datasets_edge_weights = preprocess_human_signed_datasets(datanames, species, alias_2geneid)
+    if species == 'S_cerevisiae':
+        signed_datasets, signed_datasets_edge_weights = preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datanames, species)
+    return signed_datasets, signed_datasets_edge_weights
 def get_targets(df):
     plus_targets_of_deletion=collections.defaultdict(list)
     minus_targets_of_deletion=collections.defaultdict(list)
@@ -195,7 +264,7 @@ def translate_multi_ind(data, alias_2geneid, v=True):
 
 def translate_axes(perturbations_map, alias_2geneid, axis='all'):
     """
-    translates column names and row names into entrex geneIDs
+    translates column names and row names into entrez geneIDs
     input:
         perturbations_map: pd.DataFrame
         alias_2geneid: dictionary
@@ -233,7 +302,18 @@ def translate_axes(perturbations_map, alias_2geneid, axis='all'):
         perturbations_map.rename(columns=column_map, inplace=True)
     return perturbations_map
 
-def get_perturbations_map(data_dir, alias_2geneid,species):
+def load_training_data(outdir, datanames, species):
+    signed_datasets = {}
+    signed_datasets_edge_weights = {}
+    for dataname in datanames:
+        labels = pd.read_csv(outdir + dataname+".lbl.tsv", header=None, sep='\t', index_col=[0,1]).squeeze()
+        weights = pd.read_csv(outdir + dataname+".w8.tsv", header=None, sep='\t',index_col=[0,1]).squeeze() #squeeze argument to turn one column dataframe into seriess
+        signed_datasets[dataname] = labels
+        signed_datasets_edge_weights[dataname] = weights
+    return signed_datasets, signed_datasets_edge_weights
+
+
+def get_perturbations_map(data_dir, alias_2geneid,species, filename):
     """
     output:
         perturbations_map: pd.DataFrame column names: entrez geneIDs of 
@@ -244,30 +324,14 @@ def get_perturbations_map(data_dir, alias_2geneid,species):
     """
     print(">>>>>> getting knockout pairs set:")
     if species == "S_cerevisiae":
-        perturbations_map=pd.read_csv(data_dir+'mutational_signatures_Holstege.cdt',sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
+        filename='mutational_signatures_Holstege.cdt'
+        perturbations_map=pd.read_csv(data_dir+filename,sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
         perturbations_map.drop(perturbations_map.columns[range(6)],axis=1,inplace=True)
         print('initial experiments before translation: ', perturbations_map.shape[1])
         print('initial affected genes before translation: ', perturbations_map.shape[0])
-        #02 TODO 13/11 remove transcription factors from knockouts (see mail with roded as to why)
-        # pensavo di averlo fatto ma sto codice non fa nulla
-        # def read_transcription_annotations_from_GFF(annotation_file_dir, aspect='F'):
-        #     functional_gene_dict = collections.defaultdict(list)
-        #     with open(annotation_file_dir, 'r') as f:
-        #         for line in f:
-        #             if line[0] != '#':
-        #                 if 'transcription factor' in line:
-        #                     functional_gene_dict[line[2]].append(1)
-        #     return functional_gene_dict
-    
-        # asd=read_transcription_annotations_from_GFF(data_dir+'yeastannotation.gff')
-        # n=0
-    
-        # for knockout_gene in perturbations_map.columns:
-        #     if knockout_gene in asd.keys():
-        #         n+=1
     
     if species == "H_sapiens":
-        anndataobject=anndata.read_h5ad(data_dir+"K562_gwps_normalized_bulk_01.h5ad")
+        anndataobject=anndata.read_h5ad(data_dir+filename)
         #ann.X is the heatmap
         #ann.obs is metadata on rows (y axis)
         # ann. var is metadata on columns (x axis)
@@ -280,23 +344,29 @@ def get_perturbations_map(data_dir, alias_2geneid,species):
         perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
 
     perturbations_map=translate_axes(perturbations_map, alias_2geneid)
-    print('Knockdown?perturbation experiments: ', perturbations_map.shape[1])
+    print('Perturbation experiments: ', perturbations_map.shape[1])
     print('Affected genes: ', perturbations_map.shape[0])
 
     return perturbations_map 
 
-def extract_knockotut_effect_pairs_from_data(holst, genes, threshold=1.7): # See ref. for threshold value
+def extract_knockotut_effect_pairs_from_data(perturb_map, genes, threshold=1.7):
+    # See original data refs. for threshold value
 # todo, refactor: this must be faster cos with human it's super slow. todo. threshold for human??
     plus_targets_of_deletion={}
     minus_targets_of_deletion={}
-    print('filter out expression threshold')
-    for source  in holst.columns:
-        list_of_plus_targets=holst[source][(holst[source]>threshold)].index
-        list_of_minus_targets=holst[source][(holst[source]<-threshold)].index # the gene names of genes with threshold value for that particular experiment (source)
+    
+    
+    print('removing genes not present in base network:')
+    perturb_map.drop(columns=set(perturb_map.columns).difference(set(genes)), inplace=True)
+    perturb_map.drop(index=set(perturb_map.index).difference(set(genes)), inplace=True)
+    
+    print('filtering out expression threshold:')
+    for source  in perturb_map.columns:
+        list_of_plus_targets=perturb_map[source][(perturb_map[source]>threshold)].index
+        list_of_minus_targets=perturb_map[source][(perturb_map[source]<-threshold)].index # the gene names of genes with threshold value for that particular experiment (source)
         if (len(list_of_plus_targets)>0) and (len(list_of_minus_targets)>0):
             plus_targets_of_deletion[source]=list(list_of_plus_targets)
             minus_targets_of_deletion[source]=list(list_of_minus_targets)
-    plus_targets_of_deletion, minus_targets_of_deletion = remove_proteins_from_experiments(plus_targets_of_deletion, minus_targets_of_deletion, genes)   
     return plus_targets_of_deletion, minus_targets_of_deletion
 
 
@@ -313,7 +383,7 @@ def read_network_from_file(network_dir, species):
     return pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,3]), header=None)
 
         
-def graph_from_dataframe(dataframe, net_type="undir"):
+def graph_from_dataframe(SPECIES_DATA_DIR, SPECIES, net_type="undir"):
     """
     input: 
         dataframe: pd.DataFrame
@@ -322,6 +392,7 @@ def graph_from_dataframe(dataframe, net_type="undir"):
         networkx.graph
     v3: treating the input as undirected graph. For the directed case, see v2
     """
+    dataframe=read_network_from_file(SPECIES_DATA_DIR, SPECIES)
     if net_type=="undir":
         return networkx.from_pandas_edgelist(dataframe.reset_index().rename(columns={2:'weight'}), 0,1,'weight')
 
@@ -379,17 +450,17 @@ def converttod2ddirected(network, threshold):
     return new_network
 
     
-def add_edges_from_labels(graph, edge_weights, flag):
+def add_edges_from_labels(graph, edge_weights, flag, v=True):
     '''
-    adds missing edges to network from labels.
-    If edges come from Kegg and KPi or ubiquitin datasets, 
-    will be added as directed because they are directed by definition. 
-    Moreover, in this case, their opposite direction counterprts will be removed.
-    If edges come from protein_complex validation set, will be added as undirected
+    Adds missing edges to network from labels. Edges can be either directed or undirected.
+    If edges are added as directed, their opposite direction counterparts will be removed
+    if they exist in the base network.
     Inputs:
-    graph: nx.Graph() or nx.DiGraph(). The base interaction network
-    edge_weights: pd.Series. indexes are a tuple of protein ids, and the alue is the edge weight
-    flag: str: 'kegg_kpi','protein_complex' or 'ubiquitin'
+        graph: nx.Graph() or nx.DiGraph(). The base interaction network
+        edge_weights: pd.Series. indexes are a tuple of protein ids, and the value is the edge weight
+        flag: str: ['d','u'] treat edges as directed ('d') or undirected ('u')
+    Output:
+        directedgraph: nx.DiGraph()
     '''
     directedgraph=graph.to_directed() # if already directed (nx.DiGraph object), returns a (deep) copy   
     edges=directedgraph.edges()
@@ -399,7 +470,7 @@ def add_edges_from_labels(graph, edge_weights, flag):
     u=0
     w=[]
     for edge in edge_weights.index:
-        if flag == 'kegg_kpi' or flag == 'ubiq':
+        if flag == 'd':
             if edge in edges:
                 if (edge[1],edge[0]) in edges: #both directions are present. let's remove the wrong one!
                     if not directedgraph[edge[1]][edge[0]]['weight']==0:
@@ -414,11 +485,11 @@ def add_edges_from_labels(graph, edge_weights, flag):
                     directedgraph.add_edge(edge[0],edge[1], weight=edge_weights[edge])
                     a+=1
                 else:  
-                    if not directedgraph[edge[1]][edge[0]]['weight'] == 0: #oriented edges in basenet with claimed orientation equal to known training edges' orientation
+                    if not directedgraph[edge[1]][edge[0]]['weight'] == 0: #oriented edges in basenet with claimed orientation opposite to known training edges' orientation
                         n+=1
                     directedgraph[edge[1]][edge[0]]['weight'] == 0
                     directedgraph.add_edge(edge[0],edge[1], weight=edge_weights[edge])
-        elif flag=='p_complex':
+        elif flag=='u':
             if not (edge[0],edge[1]) in edges:
                 a+=1
                 directedgraph.add_edge(edge[0],edge[1], weight=0.8)
@@ -427,13 +498,12 @@ def add_edges_from_labels(graph, edge_weights, flag):
                 w.append(directedgraph[edge[0]][edge[1]]['weight'])
                 directedgraph[edge[0]][edge[1]]['weight']=max(directedgraph[edge[0]][edge[1]]['weight'], 0.8) #udpate weight of current edge to 0.8 if lower than that,
             # directedgraph.add_edge(edge[1],edge[0], weight=0.8)
-        else:
-            raise ValueError('Choose a valid flag between "kegg_kpi", "p_complex", ubiq"')
-    print(n, 'edges in base networ k with claimed direction opposite to known training data edges orientation')
-    print(c, 'edges in base network with claimed orientation equal to known training edges data orientation')
-    print(a, 'directed edges added to base network')
-    print(u, 'edges in base network withut orientation which have been oriented from training data')
-    print('total:',a+n+c+u)
+    if v:
+        print(n, 'edges in base network with claimed direction opposite to known training data edges orientation')
+        print(c, 'edges in base network with claimed orientation equal to known training edges data orientation')
+        print(a, 'directed edges added to base network')
+        print(u, 'edges in base network withut orientation which have been oriented from training data')
+        print('total:',a+n+c+u)
     return directedgraph
 
 def remove_training_edges_if_not_in_base_net(label, edges_of_base_net):
@@ -441,6 +511,7 @@ def remove_training_edges_if_not_in_base_net(label, edges_of_base_net):
         if not edge in edges_of_base_net:
             label.drop(edge, inplace=True)          
     return label
+
 
 def remove_dupes(data):
     seen = {}
@@ -453,103 +524,23 @@ def remove_dupes(data):
             if seen[x] == 1:
                 dupes.append(x)
             seen[x] += 1
-    return data.drop(dupes)   
+    return data.drop(dupes)
 
 
-# def remove_flips(data):
-#     indexes_unfilpped=[]
-#     to_flip=[]
-    
-#     for x in data.index:
-#         if (x[1],x[0]) in  data.index:
-#             indexes_unfilpped.append(x)
-#             to_flip.append(x)
-#             opposite=pd.MultiIndex.from_tuples([(x[1],x[0])])
-    
-#             data.drop(opposite, inplace=True)
-#             data.drop(x, inplace=True)     
-#     return data
-
-
-def remove_proteins_from_experiments(plus_targets_of_deletion, minus_targets_of_deletion, genes, v=True):
-    not_present_in_keys=[]
-    if v:
-        print('initial plus dictionary length', len(list(plus_targets_of_deletion.keys())))
-        print('initial minus dictionary length', len(list(minus_targets_of_deletion.keys())))
-
-    for source in plus_targets_of_deletion.keys():
-
-        if not source in genes:
-            not_present_in_keys.append(source)
-    for source in minus_targets_of_deletion.keys():
-        if (not source in genes) and (not source in not_present_in_keys):
-            not_present_in_keys.append(source)
-    
-    if v:
-        print(len(not_present_in_keys), 'proteins not present in keys')
-    for protein in not_present_in_keys:
-        if protein in plus_targets_of_deletion.keys():
-            plus_targets_of_deletion.pop(protein, None)
-        if protein in minus_targets_of_deletion.keys():
-            minus_targets_of_deletion.pop(protein, None)
-    
-    if v:
-        print('after removng plus keys not present in genes', len(list(plus_targets_of_deletion.keys())))
-        print('after removng minus keys not present in genes', len(list(minus_targets_of_deletion.keys())))
-
-
-
-    for source in plus_targets_of_deletion.keys():
-        
-        not_present_in_items=[]
-
-        for target in plus_targets_of_deletion[source]:
-            if (not target in genes) and (not target in not_present_in_items):
-                not_present_in_items.append(target)
-            
-        for item in not_present_in_items:
-            plus_targets_of_deletion[source].remove(item)
-
-
-    for source in minus_targets_of_deletion.keys():
-        
-        not_present_in_items=[]
-
-        for target in minus_targets_of_deletion[source]:
-            if (not target in genes) and (not target in not_present_in_items):
-                not_present_in_items.append(target)
-            
-        for item in not_present_in_items:
-            minus_targets_of_deletion[source].remove(item)
-
-            
-    empty_key=[]
-    for source in plus_targets_of_deletion.keys():
-        if len(plus_targets_of_deletion[source])==0:
-                empty_key.append(source)
-    for source in minus_targets_of_deletion.keys():
-        if (len(minus_targets_of_deletion[source])==0) and (not source in empty_key):
-                empty_key.append(source)
-                
-    for protein in empty_key:
-        if protein in plus_targets_of_deletion.keys():
-            plus_targets_of_deletion.pop(protein, None)
-        if protein in minus_targets_of_deletion.keys():
-            minus_targets_of_deletion.pop(protein, None)
-            
-    if v:
-        print('after removng plnus empty keys ', len(list(plus_targets_of_deletion.keys())))
-        print('after removng minus empty keys ', len(list(minus_targets_of_deletion.keys())))
-
-           
-    return plus_targets_of_deletion, minus_targets_of_deletion
-
-def write(OUTDIR, labels_of):
-    '''datasets is a list of (pd.Series, datasetname string) tuples'''
+def write(OUTDIR, labels_of, edge_weights_of):
+    '''datasets is a dictionary  (pd.Series, datasetname string) tuples'''
     for  dataname, labels in labels_of.items():
         labels=labels.reset_index()
         labels[[0,1]]=pd.DataFrame(labels['index'].tolist(), index=labels.index)  
         labels.drop(columns='index')
         labels=labels[[0,1,2]]
         labels.to_csv(OUTDIR+dataname+'.lbl.tsv', sep='\t', header=None, index=False)
-    
+        
+        weight = edge_weights_of[dataname]
+        weight=weight.reset_index()
+        weight[[0,1]]=pd.DataFrame(weight['index'].tolist(), index=weight.index)  
+        weight.drop(columns='index')
+        weight=weight[[0,1,2]]
+        weight.to_csv(OUTDIR+dataname+'.w8.tsv', sep='\t', header=None, index=False)
+
+        
