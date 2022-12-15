@@ -2,6 +2,7 @@
 """
 Preprocesses perturbation dataset and signed datasets to create inputs for network_signer.py
 Inputs are saved in /features_and_labels
+
 v2:
     -remove DATANAME flags
     -only use knockdown_map as feature creation signatures
@@ -12,8 +13,6 @@ v2:
 v3: 
     -add human
     -removeddirected base network option
-    - major refactoring
-    
 """
 
 import os
@@ -30,7 +29,6 @@ SPECIES =  "S_cerevisiae" #
 
 HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 # HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-#HOME_DIR  =  "/content/drive" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 
 DATA_DIR = HOME_DIR+'Data'+os.sep
 SPECIES_DATA_DIR = DATA_DIR+SPECIES+os.sep
@@ -44,6 +42,8 @@ PROPAGATE_ITERATIONS = 100
 
 # Initioalize dictionary of aliases
 alias_2geneid =  readname2geneid(SPECIES_DATA_DIR, SPECIES)
+with open(DATA_DIR+'alias_2geneid.pkl','wb') as f:
+    pickle.dump(alias_2geneid , f)
 
 ##############################################################################
 # ## Get training sets:
@@ -51,7 +51,7 @@ alias_2geneid =  readname2geneid(SPECIES_DATA_DIR, SPECIES)
 
 
 if SPECIES == 'S_cerevisiae':
-    datasets = ['kegg_kpi', 'ubiq', 'p_complex']
+    datasets = ['kegg','kpi']#, 'ubiq', 'p_complex']
 else:
     datasets = {'kegg':SPECIES_DATA_DIR + SPECIES + "_kegg_signed_ppi.txt",\
                  'PSP':DATA_DIR +'Kinase_Substrate_Dataset.txt',\
@@ -68,7 +68,7 @@ graph = graph_from_dataframe(SPECIES_DATA_DIR, SPECIES)
 if SPECIES=='H_sapiens': 
     flag_of = {'kegg':'d','PSP':'d','depod':'d','ubinet2':'d'}
 else:
-    flag_of = {'kegg_kpi':'d', 'ubiq':'d', 'p_complex':'u'}
+    flag_of = {'kegg':'d','kpi':'d', 'ubiq':'d', 'p_complex':'u'}
 
 for dataname, signed_data in signed_datasets_edge_weights.items():
     graph = add_edges_from_labels(graph, signed_data, flag = flag_of[dataname])
@@ -76,10 +76,12 @@ for dataname, signed_data in signed_datasets_edge_weights.items():
     
 genes = sorted(graph.nodes)
 # Generate perturbation maps for subsequent feature generation:
-
-perturbations_map = get_perturbations_map(SPECIES_DATA_DIR, alias_2geneid, SPECIES)
+filename =  'K562_essential_normalized_bulk_01.h5ad'#"K562_gwps_normalized_bulk_01.h5ad"#
+perturbations_map = get_perturbations_map(SPECIES_DATA_DIR, alias_2geneid, SPECIES, filename)
 print('shape:',perturbations_map.shape)
-plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(perturbations_map, genes)
+
+threshold = 1.7 if SPECIES == 'S_cerevisiae' else 1.7
+plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(perturbations_map, genes, threshold=threshold)
 with open(OUTDIR+'plus_targets.pkl', 'wb') as f:
     pickle.dump(plus_targets_of_deletion, f)
 with open(OUTDIR+'minus_targets.pkl','wb') as f:
