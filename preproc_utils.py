@@ -135,9 +135,21 @@ def get_protein_complexes_data(data_dir, alias_2geneid):
     complexes_label=remove_dupes(complexes_label)
     complexes_weights=complexes_weights.loc[complexes_label.index]
     return complexes_label, complexes_weights
+def get_yeast_kpi(data_dir, species, alias_2geneid):
+    label=pd.read_csv(data_dir+"yeast_kpi.txt", sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
+    edge_weights=pd.Series(0.6, index=label.index)
+    label = pd.Series(data=list(label[2]), index=label.index)
+    label.name = 2 
+    edge_weights.name=2
+    label = translate_multi_ind(label, alias_2geneid)
+    edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
+    #'Removing duplicates'
+    label=remove_dupes(label)
+    edge_weights=edge_weights.loc[label.index]
+    return label, edge_weights
 
-def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due cosi printa tutto in due, e tutto diventa diviso in due, ogni dataset e' separato. qst vuol dire anche che aggiungi una flag quando li mergi e fai un remove dupes generale, in cui c''e 'una gerarchi di flags per decidere quale tenere (kegg->ubiq->kpi->pcomplex).
-    print("\n>>>>>>> getting kegg and kpi sets:")
+def get_yeast_kegg(data_dir, species, alias_2geneid): #TODO magari dividilo in due cosi printa tutto in due, e tutto diventa diviso in due, ogni dataset e' separato. qst vuol dire anche che aggiungi una flag quando li mergi e fai un remove dupes generale, in cui c''e 'una gerarchi di flags per decidere quale tenere (kegg->ubiq->kpi->pcomplex).
+    print("\n>>>>>>> getting kegg set:")
     # PPI data generated with extract_kegg_interactions.py
     label=pd.read_csv(data_dir + species + "_kegg_signed_ppi.txt", sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
     label=label[label[3]!='indirect effect']
@@ -157,17 +169,6 @@ def get_kegg_Kpi(data_dir, species, alias_2geneid): #TODO magari dividilo in due
     # label_kegg = translate_multi_ind(label, alias_2geneid)
     # print('KEGG lables', label_kegg.value_counts())
     ## from Patkar and Sharan 2018
-    if species == 'S_cerevisiae': #todo temporary
-        print('training edges from kpi:', len(label))
-        label_kpi=pd.read_csv(data_dir+"yeast_kpi.txt", sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
-        label_kpi[3] = 0.6
-        # 24 07 TODO aggiunto ste due righe per contare quanti sono i signs da qui
-        label_kpi_s = pd.Series(data=list(label_kpi[2]), index=label_kpi.index)
-        label_kpi_s.name = 2 
-        label_kpi_s = translate_multi_ind(label_kpi_s, alias_2geneid)
-        print('kpi lables', label_kpi_s.value_counts())
-        ##
-        label=pd.concat([label,label_kpi])
     edge_weights=pd.Series(data=list(label[3]), index=label.index)
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
@@ -185,8 +186,10 @@ def preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datasets, SPECIES):
     labels_of = {}
     weights_of = {}
     for dataset_name in datasets:
-        if dataset_name == 'kegg_kpi':
-            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_Kpi(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
+        if dataset_name == 'kegg':
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_yeast_kegg(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
+        if dataset_name == 'kpi':
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_yeast_kpi(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
         if dataset_name == 'p_complex':
             labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(data_dir+SPECIES+os.sep,alias_2geneid)
         if dataset_name == 'ubiq':
@@ -307,7 +310,7 @@ def load_training_data(outdir, datanames, species):
     signed_datasets_edge_weights = {}
     for dataname in datanames:
         labels = pd.read_csv(outdir + dataname+".lbl.tsv", header=None, sep='\t', index_col=[0,1]).squeeze()
-        weights = pd.read_csv(outdir + dataname+".w8.tsv", header=None, sep='\t',index_col=[0,1]).squeeze() #squeeze argument to turn one column dataframe into seriess
+        weights = pd.read_csv(outdir + dataname+".w8.tsv", header=None, sep='\t',index_col=[0,1]).squeeze() #squeeze argument to turn one column dataframe into series
         signed_datasets[dataname] = labels
         signed_datasets_edge_weights[dataname] = weights
     return signed_datasets, signed_datasets_edge_weights
@@ -343,7 +346,7 @@ def get_perturbations_map(data_dir, alias_2geneid,species, filename):
         perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
         perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
 
-    perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+    # perturbations_map=translate_axes(perturbations_map, alias_2geneid)
     print('Perturbation experiments: ', perturbations_map.shape[1])
     print('Affected genes: ', perturbations_map.shape[0])
 
@@ -513,7 +516,7 @@ def remove_training_edges_if_not_in_base_net(label, edges_of_base_net):
     return label
 
 
-def remove_dupes(data):
+def remove_dupes(data): #TODO dont use this actually removes both copies of dupes
     seen = {}
     dupes = []
     
