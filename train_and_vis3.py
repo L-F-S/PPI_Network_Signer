@@ -11,13 +11,20 @@ from sklearn.metrics import roc_curve, precision_recall_curve,  auc
 from random import seed, sample
 
 
-def log(dataname, AUROC, AUPR, logfile, DATE, SPECIES, edgedatainbasenet='-', basenet='Holstege', comments=''):
+def log(dataname, AUROC, AUPR, logfile, DATE, SPECIES, pert_map, edgedatainbasenet='-', comments=''):
     AUROC=str(AUROC)
     AUPR=str(AUPR)
-    line=dataname+'\t'+AUROC+'\t'+AUPR+'\t'+DATE+'\t'+edgedatainbasenet+'\t'+basenet+'\t'+SPECIES+'\t'+comments+'\n'
+    line=dataname+'\t'+AUROC+'\t'+AUPR+'\t'+DATE+'\t'+edgedatainbasenet+'\t'+pert_map+'\t'+SPECIES+'\t'+comments+'\n'
     with open (logfile, 'a') as f:
         f.write(line)
     return
+
+def load_features(OUTDIR, datanames, species):
+    features={}
+    for dataname in datanames:
+        features[dataname] = pd.read_csv(OUTDIR+dataname+'.ft.csv', sep=',', header=0)
+    return features
+    
 
 def read_features(OUTDIR, DATE, which=['k','u','p'], whichinbase=['k','u','p']):
     labels=[]
