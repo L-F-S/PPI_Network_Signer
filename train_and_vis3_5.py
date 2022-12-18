@@ -7,6 +7,7 @@ import pandas as pd
 from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve, precision_recall_curve,  auc
 from random import seed, sample
 
@@ -22,7 +23,7 @@ def log(dataname, AUROC, AUPR, logfile, DATE, SPECIES, pert_map, edgedatainbasen
 def load_features(OUTDIR, datanames, species):
     features={}
     for dataname in datanames:
-        features[dataname] = pd.read_csv(OUTDIR+dataname+'.ft.csv', sep=',', header=0)
+        features[dataname] = pd.read_csv(OUTDIR+dataname+'.ft.csv', sep=',', header=0, index_col=([0,1]))
     return features
     
 
@@ -143,7 +144,24 @@ def downsample(training_indexes, labels):
 
 def predict(classifier, X_train, y_train, X_test, y_test, dataname):
     return
-def custom_k_fold(classifier, n_folds, x_train, y_train, dataname, IMG_DIR, metric="ROC", plot=True, downsampling=False, upsampling=''):
+
+
+def AUCs(classifier, features, labels):
+    X=StandardScaler().fit_transform(features)#, columns=features.index)
+    y_predicted=classifier.predict_proba(X)[:,1:] # indexing this way because of output for predict_proba
+        
+    tpr, fpr, thresholds = precision_recall_curve(labels, y_predicted) # not actually fpr and tpr in this case, they are tprs=precision, fpr = recall
+    tpr=tpr[::-1]  #they are reversed for some reason
+    fpr=fpr[::-1]
+    pr_auc= auc(fpr, tpr) #float, the AUC
+    fpr, tpr, thresholds = roc_curve(labels, y_predicted)
+    roc_auc= auc(fpr, tpr) #float, the AUC
+    return roc_auc, pr_auc
+    
+def k_fold(classifier, n_folds, x_train, y_train, dataname, IMG_DIR,\
+                  metric="ROC", plot=True, downsampling=False, upsampling=''):
+    x_train = pd.DataFrame(StandardScaler().fit_transform(x_train), columns=x_train.columns)
+                           
      
     if upsampling:
         print('upsampling data with method: ', upsampling)
