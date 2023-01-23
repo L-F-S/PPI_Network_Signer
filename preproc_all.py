@@ -19,74 +19,199 @@ import os
 import pickle
 from preproc_utils import  add_edges_from_labels,graph_from_dataframe,\
     preprocess_signed_datasets, readname2geneid, get_perturbations_map,\
-         extract_knockotut_effect_pairs_from_data, write
-
+         extract_knockotut_effect_pairs_from_data, write, load_training_data
 ##############################################################################
 #  INPUTS
 ##############################################################################
 SPECIES = "H_sapiens"#
-SPECIES =  "S_cerevisiae" #
+# SPECIES =  "S_cerevisiae" #
 
 HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 # HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
 
-DATA_DIR = HOME_DIR+'Data'+os.sep
-SPECIES_DATA_DIR = DATA_DIR+SPECIES+os.sep
+DATA_DIR = HOME_DIR+'Data'+os.sep+SPECIES+os.sep
 DIRECTED_DIR = HOME_DIR+"network_signing"+os.sep
 OUTDIR=DIRECTED_DIR+'features_and_labels'+os.sep+SPECIES+os.sep
-
-# Propagation parameters:
-PROPAGATE_ALPHA = 0.6
-PROPAGATE_EPSILON = 1e-5
-PROPAGATE_ITERATIONS = 100
-
 # Initioalize dictionary of aliases
-alias_2geneid =  readname2geneid(SPECIES_DATA_DIR, SPECIES)
-with open(DATA_DIR+'alias_2geneid.pkl','wb') as f:
-    pickle.dump(alias_2geneid , f)
+# alias_2geneid =  readname2geneid(DATA_DIR, SPECIES)
+# with open(DATA_DIR+'alias_2geneid.pkl','wb') as f:
+#     pickle.dump(alias_2geneid , f)
+#%%
+with open( DATA_DIR+'alias_2geneid.pkl', 'rb') as f:
+    alias_2geneid = pickle.load(f)
 
 ##############################################################################
 # ## Get training sets:
 ##############################################################################
 
-
 if SPECIES == 'S_cerevisiae':
-    datasets = ['kegg','kpi']#, 'ubiq', 'p_complex']
+    datasets = ['patkar_kegg','kpi']#, 'ubiq']#, 'p_complex']
 else:
-    datasets = {'kegg':SPECIES_DATA_DIR + SPECIES + "_kegg_signed_ppi.txt",\
+    datasets = {'kegg':DATA_DIR + SPECIES + "_kegg_signed_ppi.txt",\
                  'PSP':DATA_DIR +'Kinase_Substrate_Dataset.txt',\
+                 'depod_unchecked':DATA_DIR +'depod_phospho_unchecked.csv',\
                 'ubinet2':DATA_DIR+'UbiNet2E3_substrate_interactions.tsv'}
 
-signed_datasets, signed_datasets_edge_weights = preprocess_signed_datasets(DATA_DIR, datasets, SPECIES, alias_2geneid)
-write(OUTDIR, signed_datasets, signed_datasets_edge_weights)
+# signed_datasets, signed_datasets_edge_weights = preprocess_signed_datasets(DATA_DIR, datasets, SPECIES, alias_2geneid)
+# write(OUTDIR, signed_datasets, signed_datasets_edge_weights)
+ # alternatively load:
+# from preproc_utils import load_training_data
 
+signed_datasets, signed_datasets_edge_weights = load_training_data(OUTDIR, datasets, SPECIES)
 #%%
 print("\n>>>>>>> loading base network to propagte on:")
-
-graph = graph_from_dataframe(SPECIES_DATA_DIR, SPECIES)
+graph = graph_from_dataframe(DATA_DIR, SPECIES)
 #ADD edges from training labels which are not present:
 if SPECIES=='H_sapiens': 
-    flag_of = {'kegg':'d','PSP':'d','depod':'d','ubinet2':'d'}
+    flag_of = {'kegg':'d','PSP':'d','depod_unchecked':'d','ubinet2':'d'}
 else:
-    flag_of = {'kegg':'d','kpi':'d', 'ubiq':'d', 'p_complex':'u'}
+    flag_of = {'kegg':'d','kpi':'d', 'ubiq':'d', 'p_complex':'u', 'patkar_kegg':'d'}
 
 for dataname, signed_data in signed_datasets_edge_weights.items():
     graph = add_edges_from_labels(graph, signed_data, flag = flag_of[dataname])
 
     
 genes = sorted(graph.nodes)
-# Generate perturbation maps for subsequent feature generation:
-filename =  'K562_essential_normalized_bulk_01.h5ad'#"K562_gwps_normalized_bulk_01.h5ad"#
-perturbations_map = get_perturbations_map(SPECIES_DATA_DIR, alias_2geneid, SPECIES, filename)
+#%%# Generate perturbation maps for subsequent feature generation:
+
+if SPECIES == "S_cerevisiae":
+    filename='mutational_signatures_Holstege.cdt'
+else:
+    filename =  'K562_essential_normalized_bulk_01.h5ad'#"K562_gwps_normalized_bulk_01.h5ad"#
+#%% for human: using clustered_mean_gene_experssion data  from figures 2 and 4
+import pandas as pd
+pmap2=pd.read_csv(DATA_DIR+'clustered_mean_gene_expression_figs2-4.csv.gz', index_col=0, \
+                  skiprows=[1,2],  header=0) #from fig 2a
+#columns= gene transcript
+#rows = gene name
+pmap2.drop(columns=pmap2.columns[0], inplace=True)
+#ma strano: figura dice: rows 1973 perturbs with strong fenotipes
+#cols 2319 highli variable genes
+# e i numeri piu o meno ci tornano, ma invertiti
+# nel data le rows sono 2321 (e sembrano le perturbs, come nella foto)
+# mentre le cols sono 1973 (e sono definiti rtanscripts, come nella fot)
+# pero nella foto si vede chiaramente che il lato longo sono effettivamente le cols
+#quindi qlcs non va. magari semplicemente hanno girato la figura di 90'
+# this is the data u need, and fuck the rest.
+pmap2.rename(columns= lambda x : x.split('_')[3], inplace=True)
+from preproc_utils import translate_axes
+from collections import defaultdict
+seen_id=defaultdict(list)
+seengene=[]
+dupedid=defaultdict(list)
+dupedgene=[]
+for i in pmap2.columns:
+    if i in seengene:
+        dupedgene.append(i)
+        try:
+            dupedid[alias_2geneid[i]].append( i)
+        except:
+            continue
+    else:
+        seengene.append(i)
+        #fin qui non ci sn duplicati
+    try:
+        if alias_2geneid[i] in seen_id.keys():
+            dupedid[alias_2geneid[i]].append(i)
+        seen_id[alias_2geneid[i]].append(i)
+    except:
+        continue
+print([(i,seen_id[i]) for i in dupedid.keys()]) # ci sono alcuni ID che sono con piu nomi
+#nell index, e nel column ce ne sono 3 ripetuti lol
+
+translate_axes(pmap2, alias_2geneid) 
+pmap2=pmap2.loc[:,~pmap2.columns.duplicated()] # drop cols
+pmap2 = pmap2[~pmap2.index.duplicated(keep=False)] #drop rows
+perturbations_map =pmap2
+#%%
+#%%  dnt need this ANYMORE
+# import anndata
+# import pandas as pd
+# from preproc_utils import translate_axes
+# data_dir=DATA_DIR
+# anndataobject=anndata.read_h5ad(data_dir+filename)
+# data=anndataobject.X
+# colnames=anndataobject.var.gene_name
+# rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
+
+# perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
+# perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
+# perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+# print('initial data', perturbations_map.shape)
+# # slow cos unsorted:
+# check andersondorling BH pvalue z0.05:
+print('subsetting only strong perturbations according to Replogle et al., 2022')
+pvals=pd.read_csv(data_dir+'anderson-darling p-values_BH-corrected.csv', index_col=0)
+pvals.rename(columns= lambda x : x.split('_')[3], inplace=True)
+pvals=translate_axes(pvals, alias_2geneid) 
+# remove rows and columns not in pvals:
+c_todrop=[]
+r_todrop=[]
+for col in perturbations_map.columns:
+    if not col in pvals.columns:
+        c_todrop.append(col)
+for i in perturbations_map.index:
+    if not i in pvals.index:
+        r_todrop.append(i)
+print(len(c_todrop),len(r_todrop))
+perturbations_map.drop(columns=c_todrop, index=r_todrop, inplace=True)
+# i dont need this no mo
+print('filtered for data without pvalue, shape:', perturbations_map.shape)
+print('filtering for ADPBH <=0.05')
+def get_anderson_darling_pval(pvals,x,y):
+    pvals.loc[y,x]
+    return pvals.loc[y,x]
+rows=perturbations_map.index
+for i,x in enumerate(perturbations_map.columns):
+    for j,y in enumerate(rows):
+        if get_anderson_darling_pval(pvals,x,y)<=0.05:
+           perturbations_map.iloc[i,j] = 0
+
+#%%i dont need this no mo
+perturbations_map = get_perturbations_map(DATA_DIR, alias_2geneid, SPECIES, filename, translate=False)
 print('shape:',perturbations_map.shape)
-
-threshold = 1.7 if SPECIES == 'S_cerevisiae' else 1.7
+#%% reimand kemmeren perturb map;
+PERT_MAP_NAME =  'reimand'#'Holstege'
+filename = 'patkar_yeast_reimand.txt'
+perturb_dir=DIRECTED_DIR+'perturbation maps'+os.sep
+from preproc_utils import read_network_from_file, translate_axes
+import networkx as nx
+pert_graph = graph_from_dataframe(perturb_dir, SPECIES, net_type="dir",filename=filename)
+perturbations_map=nx.to_pandas_adjacency(pert_graph).T
+perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+#%% load perturbation map 
+if SPECIES == 'S_cerevisiae' :
+    threshold = 1.7
+if SPECIES=='H_sapiens':
+    threshold=1
 plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(perturbations_map, genes, threshold=threshold)
-with open(OUTDIR+'plus_targets.pkl', 'wb') as f:
-    pickle.dump(plus_targets_of_deletion, f)
-with open(OUTDIR+'minus_targets.pkl','wb') as f:
-    pickle.dump(minus_targets_of_deletion, f)
+#%% filter: take only those with at least 3= and 3- genes:
+k=1000
+pl_t={}
+mn_t={}
+for p in plus_targets_of_deletion.keys():
+    if (len(plus_targets_of_deletion[p])>=k and len(minus_targets_of_deletion[p])>=k):
+            pl_t[p]=plus_targets_of_deletion[p].copy()
+            mn_t[p]=minus_targets_of_deletion[p].copy()
+            
+print(len(pl_t.keys()),len(mn_t.keys()))
+#%% are the human t>1 and human k> perturbations similar?
+shared=[]
+for k in pl_t.keys():
+    if k in plus_targets_of_deletion.keys():
+        shared.append(k)
+print(len(shared))
+f=open(OUTDIR+'shared_filtered_perturbations.txt','w')
+f.write(' '.join([str(i) for i in shared]))
+f.close()
 
+#%%
+PERT_MAP_NAME='ADPBH'+'_1'
+with open(OUTDIR+'plus_targets_'+PERT_MAP_NAME+'.pkl', 'wb') as f:
+    pickle.dump(plus_targets_of_deletion, f)
+with open(OUTDIR+'minus_targets_'+PERT_MAP_NAME+'.pkl','wb') as f:
+    pickle.dump(minus_targets_of_deletion, f)
+#%%
 print("\n--------------- DATA PREPROCESSED SUCCESFULLY---------------")
 print('- Positive knockout experiment targets:', len(plus_targets_of_deletion),'\n- Negative knockout experiment targets:',len(minus_targets_of_deletion))
 print('- Labels (0 for potive and 1 for negative signe of directed interaction):\n', {name: data.value_counts() for (name, data) in signed_datasets.items()})
