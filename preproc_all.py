@@ -77,14 +77,14 @@ genes = sorted(graph.nodes)
 if SPECIES == "S_cerevisiae":
     filename='mutational_signatures_Holstege.cdt'
 else:
-    filename =  'K562_essential_normalized_bulk_01.h5ad'#"K562_gwps_normalized_bulk_01.h5ad"#
+    filename =  'clustered_mean_gene_expression_figs2-4.csv.gz'
 #%% for human: using clustered_mean_gene_experssion data  from figures 2 and 4
 import pandas as pd
-pmap2=pd.read_csv(DATA_DIR+'clustered_mean_gene_expression_figs2-4.csv.gz', index_col=0, \
+perturbations_map=pd.read_csv(DATA_DIR+filename, index_col=0, \
                   skiprows=[1,2],  header=0) #from fig 2a
 #columns= gene transcript
 #rows = gene name
-pmap2.drop(columns=pmap2.columns[0], inplace=True)
+perturbations_map.drop(columns=perturbations_map.columns[0], inplace=True)
 #ma strano: figura dice: rows 1973 perturbs with strong fenotipes
 #cols 2319 highli variable genes
 # e i numeri piu o meno ci tornano, ma invertiti
@@ -93,14 +93,14 @@ pmap2.drop(columns=pmap2.columns[0], inplace=True)
 # pero nella foto si vede chiaramente che il lato longo sono effettivamente le cols
 #quindi qlcs non va. magari semplicemente hanno girato la figura di 90'
 # this is the data u need, and fuck the rest.
-pmap2.rename(columns= lambda x : x.split('_')[3], inplace=True)
+perturbations_map.rename(columns= lambda x : x.split('_')[3], inplace=True)
 from preproc_utils import translate_axes
 from collections import defaultdict
 seen_id=defaultdict(list)
 seengene=[]
 dupedid=defaultdict(list)
 dupedgene=[]
-for i in pmap2.columns:
+for i in perturbations_map.columns:
     if i in seengene:
         dupedgene.append(i)
         try:
@@ -119,62 +119,15 @@ for i in pmap2.columns:
 print([(i,seen_id[i]) for i in dupedid.keys()]) # ci sono alcuni ID che sono con piu nomi
 #nell index, e nel column ce ne sono 3 ripetuti lol
 
-translate_axes(pmap2, alias_2geneid) 
-pmap2=pmap2.loc[:,~pmap2.columns.duplicated()] # drop cols
-pmap2 = pmap2[~pmap2.index.duplicated(keep=False)] #drop rows
-perturbations_map =pmap2
-#%%
-#%%  dnt need this ANYMORE
-# import anndata
-# import pandas as pd
-# from preproc_utils import translate_axes
-# data_dir=DATA_DIR
-# anndataobject=anndata.read_h5ad(data_dir+filename)
-# data=anndataobject.X
-# colnames=anndataobject.var.gene_name
-# rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
+translate_axes(perturbations_map, alias_2geneid) 
+perturbations_map=perturbations_map.loc[:,~perturbations_map.columns.duplicated()] # drop cols
+perturbations_map = perturbations_map[~perturbations_map.index.duplicated(keep=False)] #drop rows
 
-# perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
-# perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
-# perturbations_map=translate_axes(perturbations_map, alias_2geneid)
-# print('initial data', perturbations_map.shape)
-# # slow cos unsorted:
-# check andersondorling BH pvalue z0.05:
-print('subsetting only strong perturbations according to Replogle et al., 2022')
-pvals=pd.read_csv(data_dir+'anderson-darling p-values_BH-corrected.csv', index_col=0)
-pvals.rename(columns= lambda x : x.split('_')[3], inplace=True)
-pvals=translate_axes(pvals, alias_2geneid) 
-# remove rows and columns not in pvals:
-c_todrop=[]
-r_todrop=[]
-for col in perturbations_map.columns:
-    if not col in pvals.columns:
-        c_todrop.append(col)
-for i in perturbations_map.index:
-    if not i in pvals.index:
-        r_todrop.append(i)
-print(len(c_todrop),len(r_todrop))
-perturbations_map.drop(columns=c_todrop, index=r_todrop, inplace=True)
-# i dont need this no mo
-print('filtered for data without pvalue, shape:', perturbations_map.shape)
-print('filtering for ADPBH <=0.05')
-def get_anderson_darling_pval(pvals,x,y):
-    pvals.loc[y,x]
-    return pvals.loc[y,x]
-rows=perturbations_map.index
-for i,x in enumerate(perturbations_map.columns):
-    for j,y in enumerate(rows):
-        if get_anderson_darling_pval(pvals,x,y)<=0.05:
-           perturbations_map.iloc[i,j] = 0
-
-#%%i dont need this no mo
-perturbations_map = get_perturbations_map(DATA_DIR, alias_2geneid, SPECIES, filename, translate=False)
-print('shape:',perturbations_map.shape)
 #%% reimand kemmeren perturb map;
 PERT_MAP_NAME =  'reimand'#'Holstege'
 filename = 'patkar_yeast_reimand.txt'
 perturb_dir=DIRECTED_DIR+'perturbation maps'+os.sep
-from preproc_utils import read_network_from_file, translate_axes
+from preproc_utils import translate_axes
 import networkx as nx
 pert_graph = graph_from_dataframe(perturb_dir, SPECIES, net_type="dir",filename=filename)
 perturbations_map=nx.to_pandas_adjacency(pert_graph).T
