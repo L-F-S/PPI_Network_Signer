@@ -20,15 +20,19 @@ def read_alias2geneid(GENE_INFO_DIRECTORY, species, alias_column='LocusTag', fin
     '''LocusTag, GeneID, Symbol'''
     geneinfo_filename = GENE_INFO_DIRECTORY+ species + ".gene_info"
     geneinfo = pd.read_table(geneinfo_filename, usecols=[final_column,alias_column])
-    
+    print(alias_column)
     if len(geneinfo.columns) == 1:
         geneinfo["GeneID_str"] = geneinfo[final_column].astype(str)
-    if not alias_column == 'Synonyms':
+    if not (alias_column == 'Synonyms' or alias_column == 'dbXrefs'):
        return {series[alias_column]: series[final_column] for ind, series in geneinfo.iterrows()}
-    else:
+    elif alias_column == 'Synonyms':
        geneinfo = geneinfo[geneinfo['Synonyms']!= '-']
        temp = {str(series[alias_column]) :series[final_column] for ind, series in geneinfo.iterrows()}
        return { key: value for keys, value in temp.items() for key in keys.split('|') }
+    elif alias_column == 'dbXrefs':
+        geneinfo = geneinfo[geneinfo['dbXrefs']!= '-']
+        temp = {str(series[alias_column]) :series[final_column] for ind, series in geneinfo.iterrows()}
+        return { keys.split('Ensembl:')[-1]: value for keys, value in temp.items()}
 
     
 def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
@@ -36,12 +40,14 @@ def readname2geneid(GENE_INFO_DIRECTORY, SPECIES):
     symbol_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES, 'Symbol','GeneID')
     alias_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES)
     geneid_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES,'GeneID','GeneID')
+    ensembl_2geneid=read_alias2geneid(GENE_INFO_DIRECTORY, SPECIES,'dbXrefs','GeneID')
     strgeneid_2geneid = {str(key):value for (key,value) in geneid_2geneid.items()}
     
     symbol_2geneid.update(synonyms_2geneid)
     symbol_2geneid.update(alias_2geneid)
     symbol_2geneid.update(geneid_2geneid)
     symbol_2geneid.update(strgeneid_2geneid)
+    symbol_2geneid.update(ensembl_2geneid)
     return symbol_2geneid
     # names_2geneid=synonyms_2geneid | symbol_2geneid # dictionary concatenation operand. works with python 3.9+
     # return names_2geneid | alias_2geneid 
@@ -72,19 +78,18 @@ def get_kegg_data(filename,  species, alias_2geneid):
                           'ubiquitination':1}, inplace=True)
         
     label.drop(axis=1, labels=3, inplace=True)
-    label[3] = 0.8
-    edge_weights=pd.Series(data=list(label[3]), index=label.index)
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
-    edge_weights.name=2
-    # if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
+    if species == 'S_cerevisiae':
         #'translating indexes:'
-    label = translate_multi_ind(label, alias_2geneid)
-    edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
+        label = translate_multi_ind(label, alias_2geneid)
+    edge_weights=pd.Series(data= 0.8, index=label.index)
+    edge_weights.name=2
     #'Removing duplicates'
     label=remove_dupes(label)
     edge_weights=edge_weights.loc[label.index]
     return label, edge_weights
+
 
 def get_ubiquitin_data(filename,  species, alias_2geneid):
     print("\n>>>>>>> getting ubiquitin dataset:")
@@ -114,13 +119,13 @@ def get_ubiquitin_data(filename,  species, alias_2geneid):
     print(ubiq_labels.shape, 'final interactions')
     return ubiq_labels[2], ubiq_edge_weights
 
-def get_protein_complexes_data(data_dir, alias_2geneid):
+def get_protein_complexes_data(filename, alias_2geneid):
     '''
     Load dataset of protein complexes and use them as undirected positive interacctions.
     every undirected interaction is represented as two directed interactions in opposite directions
     '''
     print("\n>>>>>>> getting protein complex dataset:")
-    complexes_label = pd.read_csv(data_dir+"cyc2008.txt", sep="\t",)
+    complexes_label = pd.read_csv(filename, sep="\t",)
    
     complexesgroupby = complexes_label.groupby('Complex').apply(
         lambda x : list(itertools.combinations(x['Name'], 2)))
@@ -135,8 +140,9 @@ def get_protein_complexes_data(data_dir, alias_2geneid):
     complexes_label=remove_dupes(complexes_label)
     complexes_weights=complexes_weights.loc[complexes_label.index]
     return complexes_label, complexes_weights
-def get_yeast_kpi(data_dir, species, alias_2geneid):
-    label=pd.read_csv(data_dir+"yeast_kpi.txt", sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
+
+def get_yeast_kpi(filename, species, alias_2geneid):
+    label=pd.read_csv(filename, sep="\t",header=None, skiprows=1, index_col=(0,1)).dropna()
     edge_weights=pd.Series(0.6, index=label.index)
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
@@ -148,52 +154,19 @@ def get_yeast_kpi(data_dir, species, alias_2geneid):
     edge_weights=edge_weights.loc[label.index]
     return label, edge_weights
 
-def get_yeast_kegg(data_dir, species, alias_2geneid): #TODO magari dividilo in due cosi printa tutto in due, e tutto diventa diviso in due, ogni dataset e' separato. qst vuol dire anche che aggiungi una flag quando li mergi e fai un remove dupes generale, in cui c''e 'una gerarchi di flags per decidere quale tenere (kegg->ubiq->kpi->pcomplex).
-    print("\n>>>>>>> getting kegg set:")
-    # PPI data generated with extract_kegg_interactions.py
-    label=pd.read_csv(data_dir + species + "_kegg_signed_ppi.txt", sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
-    label=label[label[3]!='indirect effect']
-    label=label[label[2]!='indirect effect']
-    label=label[label[2]!='state change']
-    label=label[label[2]!='repression'] #transcription factors
-    label[2].replace({"activation":0,"inhibition":1, 'binding/association':0,\
-                      'expression':0, 'dissociation':1, 'phosphorylation': 0, \
-                          'ubiquitination':1}, inplace=True)
-        
-    label.drop(axis=1, labels=3, inplace=True)
-    label[3] = 0.8
-    #  # 24 07 TODO aggiunto ste 4 righe per contare quanti sono i signs da qui
-    # ma sn ridondanti, xke sono la copia di cosa sucede in label. le rimuovi quando disaccoppi i due dataset keg e kpi, perdio
-    # label_kegg = pd.Series(data=list(label[2]), index=label.index)
-    # label_kegg.name = 2 
-    # label_kegg = translate_multi_ind(label, alias_2geneid)
-    # print('KEGG lables', label_kegg.value_counts())
-    ## from Patkar and Sharan 2018
-    edge_weights=pd.Series(data=list(label[3]), index=label.index)
-    label = pd.Series(data=list(label[2]), index=label.index)
-    label.name = 2 
-    edge_weights.name=2
-    # if species == 'S_cerevisiae': #todo temporary, translate scerevisiae in the source
-        #'translating indexes:'
-    label = translate_multi_ind(label, alias_2geneid)
-    edge_weights = translate_multi_ind(edge_weights, alias_2geneid)
-    #'Removing duplicates'
-    label=remove_dupes(label)
-    edge_weights=edge_weights.loc[label.index]
-    return label, edge_weights
 
-def preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datasets, SPECIES):
+def preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datasets, SPECIES): #TODO lost kegg_patkar somewjere
     labels_of = {}
     weights_of = {}
-    for dataset_name in datasets:
-        if dataset_name == 'kegg':
-            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_yeast_kegg(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
+    for dataset_name, filename in datasets.items():
+        if 'kegg' in dataset_name:
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_kegg_data(filename, SPECIES, alias_2geneid) 
         if dataset_name == 'kpi':
-            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_yeast_kpi(data_dir+SPECIES+os.sep, SPECIES, alias_2geneid) 
+            labels_of[dataset_name], weights_of[dataset_name] = kegg_Kpi_labels, kegg_Kpi_edge_weights = get_yeast_kpi(filename, SPECIES, alias_2geneid) 
         if dataset_name == 'p_complex':
-            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(data_dir+SPECIES+os.sep,alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = pcomp_labels, pcomp_edge_weights = get_protein_complexes_data(filename,alias_2geneid)
         if dataset_name == 'ubiq':
-            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(data_dir+'UbiNet2E3_substrate_interactions.tsv', SPECIES, alias_2geneid)
+            labels_of[dataset_name], weights_of[dataset_name] = ubiq_labels, ubiq_edge_weights = get_ubiquitin_data(filename, SPECIES, alias_2geneid)
     return labels_of, weights_of
 
 def preprocess_human_signed_datasets(datanames,species,  alias_2geneid): #TODO change from load to preprocess, and make a load to load preprocessed data
@@ -203,7 +176,8 @@ def preprocess_human_signed_datasets(datanames,species,  alias_2geneid): #TODO c
             species: str species name
             alias_2geneid: dictionary of geneID mappings
     OUTPUT:
-        None, upgrades signed dataset
+       pd.Series,
+       pd.Series
     '''
     signed_datasets = {}
     signed_datasets_edge_weights = {}
@@ -224,6 +198,7 @@ def preprocess_signed_datasets(data_dir, datanames,species,  alias_2geneid):
     if species == 'S_cerevisiae':
         signed_datasets, signed_datasets_edge_weights = preprocess_yeast_signed_datasets(data_dir, alias_2geneid,datanames, species)
     return signed_datasets, signed_datasets_edge_weights
+
 def get_targets(df):
     plus_targets_of_deletion=collections.defaultdict(list)
     minus_targets_of_deletion=collections.defaultdict(list)
@@ -316,7 +291,7 @@ def load_training_data(outdir, datanames, species):
     return signed_datasets, signed_datasets_edge_weights
 
 
-def get_perturbations_map(data_dir, alias_2geneid,species, filename):
+def get_perturbations_map(data_dir, alias_2geneid,species, filename, translate=True):
     """
     output:
         perturbations_map: pd.DataFrame column names: entrez geneIDs of 
@@ -327,7 +302,6 @@ def get_perturbations_map(data_dir, alias_2geneid,species, filename):
     """
     print(">>>>>> getting knockout pairs set:")
     if species == "S_cerevisiae":
-        filename='mutational_signatures_Holstege.cdt'
         perturbations_map=pd.read_csv(data_dir+filename,sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
         perturbations_map.drop(perturbations_map.columns[range(6)],axis=1,inplace=True)
         print('initial experiments before translation: ', perturbations_map.shape[1])
@@ -338,31 +312,61 @@ def get_perturbations_map(data_dir, alias_2geneid,species, filename):
         #ann.X is the heatmap
         #ann.obs is metadata on rows (y axis)
         # ann. var is metadata on columns (x axis)
-        # https://gwps.wi.mit.edu/: In the anndata format, the .var annotation details genes while the .obs annotation details single-cells/pseudobulk populations.'
+        # https://gwps.wi.mit.edu/: In the anndata format, the .var annotation details genes
+        # while the .obs annotation details single-cells/pseudobulk populations.'
         data=anndataobject.X
         colnames=anndataobject.var.gene_name
         rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
         
         perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
         perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
-
-    # perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+        perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+        print('initial data', perturbations_map.shape)
+    # slow cos unsorted:
+        # check andersondorling BH pvalue z0.05:
+        print('subsetting only strong perturbations according to Replogle et al., 2022')
+        pvals=pd.read_csv(data_dir+'anderson-darling p-values_BH-corrected.csv', index_col=0)
+        pvals.rename(columns= lambda x : x.split('_')[1], inplace=True)
+        pvals=translate_axes(pvals, alias_2geneid) 
+        # remove rows and columns not in pvals:
+        c_todrop=[]
+        r_todrop=[]
+        for col in perturbations_map.columns:
+            if not col in pvals.columns:
+                c_todrop.append(col)
+        for i in perturbations_map.index:
+            if not i in pvals.index:
+                r_todrop.append(i)
+        perturbations_map.drop(columns=c_todrop, index=r_todrop, inplace=True)
+        print('filtered for data without pvalue, shape:', perturbations_map.shape)
+        print('filtering for ADPBH <=0.05')
+        def get_anderson_darling_pval(pvals,x,y):
+            pvals.loc[y,x]
+            return pvals.loc[y,x]
+        rows=perturbations_map.index
+        for i,x in enumerate(perturbations_map.columns):
+            for j,y in enumerate(rows):
+                if get_anderson_darling_pval(pvals,x,y)<=0.05:
+                   perturbations_map.iloc[i,j] = 0
+                
+    if translate==True:
+        perturbations_map=translate_axes(perturbations_map, alias_2geneid) 
     print('Perturbation experiments: ', perturbations_map.shape[1])
     print('Affected genes: ', perturbations_map.shape[0])
 
     return perturbations_map 
 
-def extract_knockotut_effect_pairs_from_data(perturb_map, genes, threshold=1.7):
+def extract_knockotut_effect_pairs_from_data(perturbation_map, genes, threshold=1.7):
     # See original data refs. for threshold value
 # todo, refactor: this must be faster cos with human it's super slow. todo. threshold for human??
     plus_targets_of_deletion={}
     minus_targets_of_deletion={}
-    
+    perturb_map = perturbation_map.copy()
     
     print('removing genes not present in base network:')
     perturb_map.drop(columns=set(perturb_map.columns).difference(set(genes)), inplace=True)
     perturb_map.drop(index=set(perturb_map.index).difference(set(genes)), inplace=True)
-    
+    print(perturb_map.shape)
     print('filtering out expression threshold:')
     for source  in perturb_map.columns:
         list_of_plus_targets=perturb_map[source][(perturb_map[source]>threshold)].index
@@ -374,7 +378,7 @@ def extract_knockotut_effect_pairs_from_data(perturb_map, genes, threshold=1.7):
 
 
 
-def read_network_from_file(network_dir, species):
+def read_network_from_file(network_dir, species, filename):
     """
     input:
         network_dir: str
@@ -382,11 +386,14 @@ def read_network_from_file(network_dir, species):
     output:
         pd.DataFrame: index: tuple, columns: confidence, directed
     """
-    filename=network_dir+os.sep+species+'.net'
+    if len(filename)==0:
+        filename=network_dir+os.sep+species+'.net'
+    else:
+        filename=network_dir+os.sep+filename
     return pd.read_csv(filename,sep="\t", index_col = [0,1],usecols=([0,1,2,3]), header=None)
 
         
-def graph_from_dataframe(SPECIES_DATA_DIR, SPECIES, net_type="undir"):
+def graph_from_dataframe(SPECIES_DATA_DIR, SPECIES, net_type="undir", filename=''):
     """
     input: 
         dataframe: pd.DataFrame
@@ -395,7 +402,7 @@ def graph_from_dataframe(SPECIES_DATA_DIR, SPECIES, net_type="undir"):
         networkx.graph
     v3: treating the input as undirected graph. For the directed case, see v2
     """
-    dataframe=read_network_from_file(SPECIES_DATA_DIR, SPECIES)
+    dataframe=read_network_from_file(SPECIES_DATA_DIR, SPECIES, filename)
     if net_type=="undir":
         return networkx.from_pandas_edgelist(dataframe.reset_index().rename(columns={2:'weight'}), 0,1,'weight')
 
@@ -453,7 +460,7 @@ def converttod2ddirected(network, threshold):
     return new_network
 
     
-def add_edges_from_labels(graph, edge_weights, flag, v=True):
+def add_edges_from_labels(graph, edge_weights, flag='d', v=True):
     '''
     Adds missing edges to network from labels. Edges can be either directed or undirected.
     If edges are added as directed, their opposite direction counterparts will be removed
@@ -531,7 +538,8 @@ def remove_dupes(data): #TODO dont use this actually removes both copies of dupe
 
 
 def write(OUTDIR, labels_of, edge_weights_of):
-    '''datasets is a dictionary  (pd.Series, datasetname string) tuples'''
+    '''labels_of and edge_weights_of:
+                dictionary of {'datasetname' : pd.Series}'''
     for  dataname, labels in labels_of.items():
         labels=labels.reset_index()
         labels[[0,1]]=pd.DataFrame(labels['index'].tolist(), index=labels.index)  
