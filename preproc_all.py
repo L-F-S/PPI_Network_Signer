@@ -36,7 +36,6 @@ OUTDIR=DIRECTED_DIR+'features_and_labels'+os.sep+SPECIES+os.sep
 # alias_2geneid =  readname2geneid(DATA_DIR, SPECIES)
 # with open(DATA_DIR+'alias_2geneid.pkl','wb') as f:
 #     pickle.dump(alias_2geneid , f)
-#%%
 with open( DATA_DIR+'alias_2geneid.pkl', 'rb') as f:
     alias_2geneid = pickle.load(f)
 
@@ -45,32 +44,37 @@ with open( DATA_DIR+'alias_2geneid.pkl', 'rb') as f:
 ##############################################################################
 
 if SPECIES == 'S_cerevisiae':
-    datasets = ['patkar_kegg','kpi']#, 'ubiq']#, 'p_complex']
+    datasets = {'patkar_kegg':DATA_DIR +  "patkar_yeast_kegg_signs.txt",\
+                'kpi':DATA_DIR + 'yeast_kpi.txt',\
+                'kegg':DATA_DIR + "S_cerevisiae_kegg_signed_ppi.txt",\
+                'ubiq':DATA_DIR +'UbiNet2E3_substrate_interactions.tsv'}
+       #'p_complex':DATA_DIR + SPECIES + "cyc2008.txt"
 else:
-    datasets = {'kegg':DATA_DIR + SPECIES + "_kegg_signed_ppi.txt",\
+    datasets = {'kegg':DATA_DIR + "H_sapiens_kegg_signed_ppi.txt",\
                  'PSP':DATA_DIR +'Kinase_Substrate_Dataset.txt',\
-                 'depod_unchecked':DATA_DIR +'depod_phospho_unchecked.csv',\
+                 'depod':DATA_DIR +'depod_phospho_unchecked.csv',\
                 'ubinet2':DATA_DIR+'UbiNet2E3_substrate_interactions.tsv'}
 
-# signed_datasets, signed_datasets_edge_weights = preprocess_signed_datasets(DATA_DIR, datasets, SPECIES, alias_2geneid)
+signed_datasets, signed_datasets_edge_weights = preprocess_signed_datasets(DATA_DIR, datasets, SPECIES, alias_2geneid)
+#todo load-training da robe diverse. da preprocess-signed. da riguardare bah
 # write(OUTDIR, signed_datasets, signed_datasets_edge_weights)
  # alternatively load:
 # from preproc_utils import load_training_data
 
-signed_datasets, signed_datasets_edge_weights = load_training_data(OUTDIR, datasets, SPECIES)
+# signed_datasets, signed_datasets_edge_weights = load_training_data(OUTDIR, datasets, SPECIES)
 #%%
 print("\n>>>>>>> loading base network to propagte on:")
 graph = graph_from_dataframe(DATA_DIR, SPECIES)
 #ADD edges from training labels which are not present:
 if SPECIES=='H_sapiens': 
-    flag_of = {'kegg':'d','PSP':'d','depod_unchecked':'d','ubinet2':'d'}
+    flag_of = {'kegg':'d', 'patkar_kegg':'d','PSP':'d','depod':'d','ubinet2':'d'}
 else:
     flag_of = {'kegg':'d','kpi':'d', 'ubiq':'d', 'p_complex':'u', 'patkar_kegg':'d'}
 
 for dataname, signed_data in signed_datasets_edge_weights.items():
     graph = add_edges_from_labels(graph, signed_data, flag = flag_of[dataname])
 
-    
+
 genes = sorted(graph.nodes)
 #%%# Generate perturbation maps for subsequent feature generation:
 
@@ -136,8 +140,9 @@ perturbations_map=translate_axes(perturbations_map, alias_2geneid)
 if SPECIES == 'S_cerevisiae' :
     threshold = 1.7
 if SPECIES=='H_sapiens':
-    threshold=1
+    threshold=1#1.009
 plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(perturbations_map, genes, threshold=threshold)
+print(len(plus_targets_of_deletion.keys()))
 #%% filter: take only those with at least 3= and 3- genes:
 k=1000
 pl_t={}
@@ -153,6 +158,7 @@ shared=[]
 for k in pl_t.keys():
     if k in plus_targets_of_deletion.keys():
         shared.append(k)
+        
 print(len(shared))
 f=open(OUTDIR+'shared_filtered_perturbations.txt','w')
 f.write(' '.join([str(i) for i in shared]))
