@@ -1,14 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-v2:
-    -remove DATANAME flags
-    -only use Holst as feature creation signatures
-    -initially undirected base network
-    -load and add all datasets with signing info together and add to base net
-    -create features for all datasets separately
-    INPUT
-"""
-
 import os
 import argparse
 import pickle
@@ -25,23 +15,31 @@ from score_edges import generate_similarity_matrix, create_the_features_differen
 ###############################################################################
 parser = argparse.ArgumentParser()
 parser.add_argument('datasets', type=str, nargs='*',
-                    help='dataset names:  options (and default) for S_cerevisiae: [kegg_kpi, ubiq, p_complex],\
+                    help='dataset names:  options (and default) for S_cerevisiae: [\'kegg\',\'kpi\', \'ubiq\'],\
                         options (anmd default) for H_sapiens: [\'kegg\',\'PSP\',\'depod\',\'ubinet2\']')
 parser.add_argument('-c', dest='N_JOBS', type=int, nargs='?', default=8,
                     help='number of corse to assign')
-parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='H_sapiens',
-                    help='species: [\'H_sapiens\', \'S_cerevisiae\']')
-parser.add_argument('-p', dest='perturbation_filename', type=str, nargs='?', default='',
-                    help='default: \'Holstege\' , other options: [\'reimand\', ADPBH..]')
+parser.add_argument('-e', dest='edges', type=str, nargs='?', default=None,
+                    help='Optional. Network edges to create features for.\
+                        Options: None: creates features for training edges only\
+                        \'all\': creates features for all edges in the PPI network,\
+                        \'validation\': creates features for test edges only (i.e. not in training data),\
+                        <fiilename>: creates features for pickled list of tuples corresponding to edge names.\
+                        Edges must be part of base PPI network.')
+parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='S_cerevisiae',
+                    help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
+parser.add_argument('-p', dest='perturbation_filename', type=str, nargs='?', default='Holstege',
+                    help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
 args = parser.parse_args()
 
 N_JOBS = args.N_JOBS
 SPECIES = args.SPECIES
 if len(args.datasets) == 0:
-    datasets = ['kegg_kpi', 'ubiq', 'p_complex'] if SPECIES == 'S_cerevisiae' else ['kegg','PSP','depod','ubinet2']
+    datasets = ['kegg','kpi', 'ubiq'] if SPECIES == 'S_cerevisiae' else ['kegg','PSP','depod','ubinet2']
 else:
     datasets = args.datasets
 print(N_JOBS, datasets)
+print(SPECIES)
 
 HOME_DIR  =  '/home/bnet/lorenzos/signed/signedv3/'
 DATA_DIR=HOME_DIR+"input"+os.sep+SPECIES+os.sep
@@ -91,6 +89,25 @@ for name, label in signed_datasets_labels.items():
     for i in label.value_counts().index:
         print('\t\t'+str(i)+'\t'+str(label.value_counts()[i]))
 print('- Base network size: ','\n\t',len(graph.edges()),'edges','\n\t',len(graph.nodes()),'nodes')
+#%% Select edges to use
+        
+if not args.edges:
+    edges_list = [d.index for d in signed_datasets_labels.values()]
+    names=list(signed_datasets_labels.keys())
+elif args.edges == 'all':
+    edges_list = [list(graph.edges)]
+    names=['all']
+elif args.edges == 'valid':
+    edges = list(set(graph.edges)-set(pd.concat(list(signed_datasets_labels.values())).index))
+    edges_list = [edges]
+    names=['validation']
+else:
+    names=[args.edges]
+    with open(DATA_DIR+args.edges,'rb') as f:
+        edges=pickle.load(f)
+    edges_list=[edges]
+print('- # edges to create features for: ', sum([len(edges) for edges in edges_list]))
+print('------------------------------------------')
 #%%
 ###############################################################################
 #    Generate similarity matrix:
@@ -100,24 +117,16 @@ raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
 matrix, raw_col_sums = generate_similarity_matrix(raw_matrix,PROPAGATE_ALPHA) #normalized similarity matrix
 num_genes     = len(genes)
 gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
-#%%
 ###############################################################################
-#    Generate features (the slow part!):
+#%%    Generate features (the slow part!):
 ###############################################################################
-print('Starting propagations') #todo non funzionana in locale
-
-for datasetname, dataset_label in signed_datasets_labels.items():
-    print("-------------CREATING FEATURES for dataset "+datasetname+"------------------")
+print('Generating features...')
+for name, edges in zip(names, edges_list):
     start=time()
-    
     packed_results = Parallel(n_jobs=N_JOBS)(delayed(create_the_features_different_knockouts)\
                                 (raw_matrix, edge, gene_indexes, matrix, plus_targets_of_deletion, minus_targets_of_deletion, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)\
-                                    for edge in dataset_label.index)
-    
+                                    for edge in edges)
     print("time passed", time()-start)
     knockout_names, results =zip(*packed_results)
     data = pd.DataFrame().from_records(results, index=[0,1], columns = knockout_names[0])
-    
-    print(data.head())
-    
-    data.to_csv(OUTDIR+datasetname+'_'+perturbations_name+'.ft.csv')
+    data.to_csv(OUTDIR+name+'_'+perturbations_name+'.ft.csv')
