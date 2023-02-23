@@ -11,6 +11,7 @@ import itertools
 import os
 import anndata
 from datetime import date
+from collections import defaultdict
 
 ###############################################################################
 # READ, FILTER AND PREPARE DATA
@@ -68,7 +69,7 @@ def get_PSP_data(filename,  species, alias_2geneid):
     return labels, weights
 
 def get_kegg_data(filename,  species, alias_2geneid):
-    label=pd.read_csv(filename, sep= "\t", header=None , skiprows=1, index_col=(0,1)) 
+    label=pd.read_csv(filename, sep= "\t", header=None, index_col=(0,1)) 
     label=label[label[3]!='indirect effect']
     label=label[label[2]!='indirect effect']
     label=label[label[2]!='state change']
@@ -80,14 +81,24 @@ def get_kegg_data(filename,  species, alias_2geneid):
     label.drop(axis=1, labels=3, inplace=True)
     label = pd.Series(data=list(label[2]), index=label.index)
     label.name = 2 
-    if species == 'S_cerevisiae':
         #'translating indexes:'
-        label = translate_multi_ind(label, alias_2geneid)
-    edge_weights=pd.Series(data= 0.8, index=label.index)
-    edge_weights.name=2
+    label = translate_multi_ind(label, alias_2geneid)
     #'Removing duplicates'
     label=remove_dupes(label)
-    edge_weights=edge_weights.loc[label.index]
+    edge_weights=pd.Series(data= 0.8, index=label.index)
+    edge_weights.name=2
+    return label, edge_weights
+
+
+def get_data(filename,  species, alias_2geneid):
+    label=pd.read_csv(filename, sep= "\t", header=0 ) 
+    label_index=list(zip(label[label.columns[0]], label[label.columns[1]]))
+    label = pd.Series(data=list(label[label.columns[2]]), index=label_index)
+    label.name = 2 
+    #'Removing duplicates'
+    label=remove_dupes(label)
+    edge_weights=pd.Series(data= 0.8, index=label.index)
+    edge_weights.name=2
     return label, edge_weights
 
 
@@ -188,6 +199,9 @@ def preprocess_human_signed_datasets(datanames,species,  alias_2geneid): #TODO c
             labels, edge_weights = get_PSP_data(filename,  species, alias_2geneid)
         elif dataset == 'kegg':
             labels, edge_weights = get_kegg_data(filename,  species, alias_2geneid)
+        else:
+            labels, edge_weights = get_data(filename,  species, alias_2geneid)
+            
         signed_datasets[dataset] = labels
         signed_datasets_edge_weights[dataset] = edge_weights
     return signed_datasets, signed_datasets_edge_weights
@@ -302,52 +316,45 @@ def get_perturbations_map(data_dir, alias_2geneid,species, filename, translate=T
     """
     print(">>>>>> getting knockout pairs set:")
     if species == "S_cerevisiae":
-        perturbations_map=pd.read_csv(data_dir+filename,sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) #'index_col = 1 does a better job' #yes, keep row 2...
+        print(filename)
+        perturbations_map=pd.read_csv(data_dir+filename,sep='\t',header=0, skiprows=[0,1,3,4,5,6], index_col=1) 
         perturbations_map.drop(perturbations_map.columns[range(6)],axis=1,inplace=True)
         print('initial experiments before translation: ', perturbations_map.shape[1])
         print('initial affected genes before translation: ', perturbations_map.shape[0])
     
     if species == "H_sapiens":
-        anndataobject=anndata.read_h5ad(data_dir+filename)
-        #ann.X is the heatmap
-        #ann.obs is metadata on rows (y axis)
-        # ann. var is metadata on columns (x axis)
-        # https://gwps.wi.mit.edu/: In the anndata format, the .var annotation details genes
-        # while the .obs annotation details single-cells/pseudobulk populations.'
-        data=anndataobject.X
-        colnames=anndataobject.var.gene_name
-        rownames=[name.split('_')[1] for name in list(anndataobject.obs.index)]
-        
-        perturbations_map = pd.DataFrame(data, columns=colnames, index=rownames)
-        perturbations_map.drop('non-targeting', inplace=True) # removes rows of non-targeting sgRNA counts, used for batch normalization
-        perturbations_map=translate_axes(perturbations_map, alias_2geneid)
-        print('initial data', perturbations_map.shape)
-    # slow cos unsorted:
-        # check andersondorling BH pvalue z0.05:
-        print('subsetting only strong perturbations according to Replogle et al., 2022')
-        pvals=pd.read_csv(data_dir+'anderson-darling p-values_BH-corrected.csv', index_col=0)
-        pvals.rename(columns= lambda x : x.split('_')[1], inplace=True)
-        pvals=translate_axes(pvals, alias_2geneid) 
-        # remove rows and columns not in pvals:
-        c_todrop=[]
-        r_todrop=[]
-        for col in perturbations_map.columns:
-            if not col in pvals.columns:
-                c_todrop.append(col)
-        for i in perturbations_map.index:
-            if not i in pvals.index:
-                r_todrop.append(i)
-        perturbations_map.drop(columns=c_todrop, index=r_todrop, inplace=True)
-        print('filtered for data without pvalue, shape:', perturbations_map.shape)
-        print('filtering for ADPBH <=0.05')
-        def get_anderson_darling_pval(pvals,x,y):
-            pvals.loc[y,x]
-            return pvals.loc[y,x]
-        rows=perturbations_map.index
-        for i,x in enumerate(perturbations_map.columns):
-            for j,y in enumerate(rows):
-                if get_anderson_darling_pval(pvals,x,y)<=0.05:
-                   perturbations_map.iloc[i,j] = 0
+        perturbations_map=pd.read_csv(data_dir+filename, index_col=0, \
+                          skiprows=[1,2],  header=0) #from fig 2a
+        #columns= gene transcript
+        #rows = gene name
+        perturbations_map.drop(columns=perturbations_map.columns[0], inplace=True)
+        perturbations_map.rename(columns= lambda x : x.split('_')[3], inplace=True)
+        seen_id=defaultdict(list)
+        seengene=[]
+        dupedid=defaultdict(list)
+        dupedgene=[]
+        for i in perturbations_map.columns:
+            if i in seengene:
+                dupedgene.append(i)
+                try:
+                    dupedid[alias_2geneid[i]].append( i)
+                except:
+                    continue
+            else:
+                seengene.append(i)
+                #fin qui non ci sn duplicati
+            try:
+                if alias_2geneid[i] in seen_id.keys():
+                    dupedid[alias_2geneid[i]].append(i)
+                seen_id[alias_2geneid[i]].append(i)
+            except:
+                continue
+        print([(i,seen_id[i]) for i in dupedid.keys()]) # ci sono alcuni ID che sono con piu nomi
+        #nell index, e nel column ce ne sono 3 ripetuti lol
+
+        translate_axes(perturbations_map, alias_2geneid) 
+        perturbations_map=perturbations_map.loc[:,~perturbations_map.columns.duplicated()] # drop cols
+        perturbations_map = perturbations_map[~perturbations_map.index.duplicated(keep=False)] #drop rows
                 
     if translate==True:
         perturbations_map=translate_axes(perturbations_map, alias_2geneid) 
@@ -535,7 +542,12 @@ def remove_dupes(data): #TODO dont use this actually removes both copies of dupe
                 dupes.append(x)
             seen[x] += 1
     return data.drop(dupes)
-
+def write2(OUTDIR, labels_of, edge_weights_of):
+    '''labels_of and edge_weights_of:
+                dictionary of {'datasetname' : pd.Series}'''
+    for  dataname, labels in labels_of.items():
+        labels.to_csv(OUTDIR+dataname+'.lbl.tsv', sep='\t', header=None)
+        edge_weights_of[dataname].to_csv(OUTDIR+dataname+'.w8.tsv', sep='\t', header=None)
 
 def write(OUTDIR, labels_of, edge_weights_of):
     '''labels_of and edge_weights_of:
