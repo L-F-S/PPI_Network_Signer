@@ -40,10 +40,11 @@ def generate_similarity_matrix(matrix):
         sum_vector: 1-D torch.tensor
         """
     matrix = matrix.toarray()
-    matrix = torch.from_numpy(matrix).type(torch.float).to(DEVICE) #to_sparse(). 
-    sum_vector =  matrix.sum(axis=0) #torch.sparse.sum(matrix, 0) # sum over rows (compress columns), (to_dense xke non posso assign values a sparse tensors (operazione sotto))
+    matrix = torch.from_numpy(matrix).type(torch.float).to_sparse().to(DEVICE) 
+    sum_vector =  torch.sparse.sum(matrix, 0) #matrix.sum(axis=0) # sum over rows (compress columns), (to_dense xke non posso assign values a sparse tensors (operazione sotto))
+    sum_vector =  sum_vector.to_dense()
     sum_vector[sum_vector == 0] = 1  #substitute 0s with ones , to avoid division by 0 later
-    norm_matrix = torch.diag(1/sum_vector) # create a diagonal matrix (all 0s except diagonal) with 1/sum vector
+    norm_matrix = torch.diag(1/sum_vector).to_sparse() # create a diagonal matrix (all 0s except diagonal) with 1/sum vector
     matrix = matrix @ norm_matrix  #multiply the two (matrix multiplication). (effectively u are dividing each column by the sum of the column).
 
     return  matrix, sum_vector 
@@ -53,7 +54,7 @@ def propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, seeds, m
     '''propagate from seeds inside matrix
     gene indexes is a dictinary mapping gene names to their indexes in matrix'''
     
-    # matrix = np.array(matrix)x
+    # matrix = np.array(matrix
     F_t = torch.zeros(num_genes).to(DEVICE)
     F_t[[gene_indexes[seed] for seed in seeds if seed in gene_indexes]] = 1
     Y = (1 - PROPAGATE_ALPHA) * F_t
