@@ -20,16 +20,18 @@ warnings.filterwarnings("ignore")
 # Simple propagation:
     
     
-def generate_similarity_matrix(matrix, PROPAGATE_ALPHA):
+def generate_similarity_matrix(matrix):
     """Normalize a similarity matrix
     by number of outgoing edges from node.
     this normalization works for  both
-    directed and undirected graphs"""
+    directed and undirected graphs
+    inputs:
+        matrix: Scipy.sparse matrix (NOT numpy array)"""
 # 05 04 2022 rimosso .A1 dalla riga sotto xke e una nparray e non piu una  np.matrix e quindi non gli serve fare il flattening.
     sum_vector = matrix.sum(axis=0).A1 # sum over rows (along columns), then get a flattened array
     sum_vector[sum_vector == 0] = 1  #substitute 0s with ones , to avoid division by 0 later
     norm_matrix = scipy.sparse.diags(1/sum_vector) # create a diagonal matrix (all 0s except diagonal) with 1/sum vector
-    matrix = matrix * norm_matrix #multiply the two. (effectively u are dividing each column by the sum of the column)
+    matrix = matrix * norm_matrix #multiply the two. (effectively u are dividing each column by the sum of the column). WARNING: * is the matrix multiplication op[erator for scipy sparse matrices. For numpy arrays, it is element-wise product. MAke sure that matrix is a scipy.sparse matrix
 
     return  matrix, sum_vector 
 
