@@ -114,7 +114,7 @@ print('------------------------------------------')
 ###############################################################################
 print('Generating similarity matrix.')
 raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
-matrix, raw_col_sums = generate_similarity_matrix(raw_matrix,PROPAGATE_ALPHA) #normalized similarity matrix
+matrix, raw_col_sums = generate_similarity_matrix(raw_matrix) #normalized similarity matrix
 num_genes     = len(genes)
 gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
 ###############################################################################
