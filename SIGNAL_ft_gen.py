@@ -130,7 +130,6 @@ for name, edges in zip(names, edges_list):
 
     print("time passed", time()-start)
     data = pd.DataFrame().from_records(results, index=[0,1], columns = knockout_names[0])
-    data.to_csv(OUTDIR+name+'_'+perturbations_name+'.ft.csv')
-    
-    #todo add saving csv to pickle format for faster loading later
+    with open(OUTDIR+name+'_'+perturbations_name+'.ft.pkl') as f:
+        pickle.dump(data, f)
 
