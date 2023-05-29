@@ -156,7 +156,50 @@ def create_the_features_different_knockouts(raw_matrix, edge, gene_indexes, matr
 
     return knockout_names, score_of 
 
-
+def create_the_features_different_knockouts_iterative(raw_matrix, edges, gene_indexes, matrix, plus_targets_of_deletion, minus_targets_of_deletion, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
+    '''fills one row of features for one sample (edge) for the features matrix to feed to the classifier.
+    
+    raw_matrix: the base network matrix
+    matrix: normalized similarity matrix by number of outgoing edges
+    edge: tuple of ints. ints are the nodes IDs. the training edge with known orientation. Also, the edge to be removed to create each feature
+    gene_indexes: dict of geneid:index in the genes list (outside this function)
+    plus/minus_targets_of_deletion: dict. {knockoutgene:list of target positive(?negative) genes}
+    num genes: int. number of genes
+    PROPAGATE_x: ints. propagation parameters
+    returns:
+        knockout_names:  list [0,1,knockout1+,knockout2+...knockoutn+,
+                               knockout1-,...knockoutn-]
+        score_of: list  [edge1ID,edge2ID, score1,....score2n]
+    '''
+    scores_of=[]
+    knockout_names_of=[]
+    for edge in edges:
+        # col1, col2, ind1, ind2 = create_defective_columns(raw_matrix, edge, gene_indexes)
+        defective_normalized_matrix = matrix#defective_norm_matrix_from_columns(matrix, col1, col2,ind1, ind2 )
+    
+        score_of=[edge[0], edge[1]]
+        knockout_names = [0,1]
+        
+        for n, source in enumerate(list(plus_targets_of_deletion.keys())):
+                # print(n)
+                prop_edge_fwd = propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {source},matrix,gene_indexes,num_genes)  
+                # create defective matrix and run defective propagation:
+                prop_noedge_fwd = propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON,{source}, defective_normalized_matrix,gene_indexes,num_genes) # num_genes is the same.
+                score_of.append(score(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in plus_targets_of_deletion[source]],edge=edge)) # [gene_indexes[x] for x in pplus_targets_of_deletio] is substituting node names with their relative index in the list
+                knockout_names.append(str(source)+'+')
+                
+    
+        for n,source in enumerate(list(minus_targets_of_deletion.keys())): #01/03/2022 TODO prop_edge_fwd e prop_noedge_fwd in questo ciclo non serve farli, per come sono plus?minus_targets of deletion ora, perche' hanno le stesse keys per ora, xke prendo solo knockouts che hanno sia plus che minus targets dentro, quindi per ora questa propagazione e' ridondante.
+    
+                prop_edge_fwd = propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {source},matrix,gene_indexes,num_genes) 
+                # create defective matrix and run defective propagation:
+                prop_noedge_fwd = propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {source}, defective_normalized_matrix, gene_indexes,num_genes) # num_genes is the same.            
+                score_of.append(score(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in minus_targets_of_deletion[source]], edge=source)) 
+                knockout_names.append(str(source)+'-')
+    
+        knockout_names_of.append(knockout_names)
+        scores_of.append(score_of)
+    return knockout_names_of, scores_of
 
 
 
