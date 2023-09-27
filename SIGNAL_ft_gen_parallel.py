@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-v2:
-    -remove DATANAME flags
-    -only use Holst as feature creation signatures
-    -initially undirected base network
-    -load and add all datasets with signing info together and add to base net
-    -create features for all datasets separately
-    INPUT
+
 """
 
 import os
