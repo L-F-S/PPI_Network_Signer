@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-
+v2:
+    -remove DATANAME flags
+    -only use Holst as feature creation signatures
+    -initially undirected base network
+    -load and add all datasets with signing info together and add to base net
+    -create features for all datasets separately
+    INPUT
 """
 
 import os
@@ -116,7 +122,7 @@ elif args.edges == 'valid':
 else:
     names=[args.edges]
     if not args.EDGESDIR:
-        EDGESDIR=INPUT_DIR
+        EDGESDIR=DATA_DIR
     else:
         EDGESDIR=args.EDGESDIR
     with open(EDGESDIR+args.edges+'.edges','rb') as f:
