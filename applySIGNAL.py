@@ -8,7 +8,8 @@ utility script for KT pairs reconstuction validation
 
 Predicts SIGNER scores for all base network.
 output: SIGNAL score for every  PPI in the network.
-input: Species, training data, deletion signature data name, edges features table (created before with preprocess _all)
+input: Species, training data, deletion signature data name,
+edges features table (created before with preprocess _all)
 """
 
 
@@ -40,8 +41,12 @@ parser.add_argument('-p', dest='perturbation_filename', type=str, nargs='?', def
                     help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
 parser.add_argument('-i', dest='feature_table_path', type=str, nargs='?', default=None,
                     help='Input directory')
+parser.add_argument('-m', dest='MODEL_DIR', type=str, nargs='?', default=None,
+                    help='pretrained model path')
 parser.add_argument('-f', dest='feature_table_name', type=str, nargs='?', default=None,
                     help='Features table name')
+parser.add_argument('-d', dest='work_dir', type=str, nargs='?', default=None,
+                    help='Optional, maybe temporary: work directory')
 
 args = parser.parse_args()
 
@@ -53,7 +58,6 @@ else:
     datasets = args.datasets
 dataset_name = '_'.join(datasets)
 pert_map=args.perturbation_filename  
-
 # # Servier directories:
 # HOME_DIR  =  '/home/bnet/lorenzos/signed/signedv3/'
 # INPUT_DIR=HOME_DIR+"input"+os.sep+SPECIES+os.sep
@@ -62,9 +66,10 @@ pert_map=args.perturbation_filename
 # BASENETDIR=INPUT_DIR
 
 # Local directories
-HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-SIGNAL_DIR = HOME_DIR+"network_signing"+os.sep
+if not args.work_dir:
+    SIGNAL_DIR = os.path.dirname(os.path.abspath(__file__))+os.sep
+else:
+    SIGNAL_DIR=args.work_dir+os.sep
 os.chdir(SIGNAL_DIR)
 TRAINING_DIR=SIGNAL_DIR+'features_and_labels'+os.sep+SPECIES+os.sep
 if not args.OUTDIR:
@@ -72,7 +77,10 @@ if not args.OUTDIR:
 else:
     OUTDIR=args.OUTDIR
 
-MODEL_DIR=SIGNAL_DIR+'models_and_predictions'+os.sep+SPECIES+os.sep
+if not args.MODEL_DIR:
+    MODEL_DIR=SIGNAL_DIR+'models_and_predictions'+os.sep+SPECIES+os.sep
+else:
+    MODEL_DIR=args.MODEL_DIR
 
 feature_table_path=args.feature_table_path  # HOME_DIR+'collab norway'+os.sep+'SIGNAL pacitaxel target sign reconstruction'\+os.sep+ '2 SIGNAL score networks'+os.sep+'SIGNAL_features'+os.sep
 feature_table_name=args.feature_table_name  #'4088.edges_'+pert_map+'.ft.pkl'
