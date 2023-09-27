@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+"""
+v2:
+    -remove DATANAME flags
+    -only use Holst as feature creation signatures
+    -initially undirected base network
+    -load and add all datasets with signing info together and add to base net
+    -create features for all datasets separately
+    INPUT
+"""
+
 import os
 import argparse
 import pickle
@@ -30,6 +40,11 @@ parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='S_cerevi
                     help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
 parser.add_argument('-p', dest='perturbation_filename', type=str, nargs='?', default='Holstege',
                     help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
+parser.add_argument('-o', dest='OUTDIR', type=str, nargs='?', default=None,
+                    help='Optional, output directory')
+parser.add_argument('-ed', dest='EDGESDIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of .edges file (with which edges to make features for)')
+
 args = parser.parse_args()
 
 N_JOBS = args.N_JOBS
@@ -44,7 +59,10 @@ print(SPECIES)
 HOME_DIR  =  '/home/bnet/lorenzos/signed/signedv3/'
 DATA_DIR=HOME_DIR+"input"+os.sep+SPECIES+os.sep
 DIRECTED_DIR = HOME_DIR+"network_signing"+os.sep
-OUTDIR=HOME_DIR+'output'+os.sep+SPECIES+os.sep
+if not args.OUTDIR:
+    OUTDIR=HOME_DIR+'output'+os.sep+SPECIES+os.sep+'features'+os.sep
+else:
+    OUTDIR=args.OUTDIR
 
 # Propagation parameters:
 PROPAGATE_ALPHA = 0.6
@@ -103,7 +121,11 @@ elif args.edges == 'valid':
     names=['validation']
 else:
     names=[args.edges]
-    with open(DATA_DIR+args.edges,'rb') as f:
+    if not args.EDGESDIR:
+        EDGESDIR=INPUT_DIR
+    else:
+        EDGESDIR=args.EDGESDIR
+    with open(EDGESDIR+args.edges+'.edges','rb') as f:
         edges=pickle.load(f)
     edges_list=[edges]
 print('- # edges to create features for: ', sum([len(edges) for edges in edges_list]))
@@ -114,7 +136,7 @@ print('------------------------------------------')
 ###############################################################################
 print('Generating similarity matrix.')
 raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
-matrix, raw_col_sums = generate_similarity_matrix(raw_matrix) #normalized similarity matrix
+matrix, raw_col_sums = generate_similarity_matrix(raw_matrix,PROPAGATE_ALPHA) #normalized similarity matrix
 num_genes     = len(genes)
 gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
 ###############################################################################
@@ -129,4 +151,6 @@ for name, edges in zip(names, edges_list):
     print("time passed", time()-start)
     knockout_names, results =zip(*packed_results)
     data = pd.DataFrame().from_records(results, index=[0,1], columns = knockout_names[0])
-    data.to_csv(OUTDIR+name+'_'+perturbations_name+'.ft.csv')
+    #data.to_csv(OUTDIR+name+'_'+perturbations_name+'.ft.csv')
+    with open(OUTDIR+name+'_'+perturbations_name+'.ft','wb') as f:
+        pickle.dump(data, f)
