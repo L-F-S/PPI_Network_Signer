@@ -26,12 +26,12 @@ def generate_similarity_matrix(matrix):
     this normalization works for  both
     directed and undirected graphs
     inputs:
-        matrix: Scipy.sparse matrix (NOT numpy array)"""
-# 05 04 2022 rimosso .A1 dalla riga sotto xke e una nparray e non piu una  np.matrix e quindi non gli serve fare il flattening.
+        matrix: scipy.sparse._csr.csr_matrix"""
+
     sum_vector = matrix.sum(axis=0).A1 # sum over rows (along columns), then get a flattened array
     sum_vector[sum_vector == 0] = 1  #substitute 0s with ones , to avoid division by 0 later
     norm_matrix = scipy.sparse.diags(1/sum_vector) # create a diagonal matrix (all 0s except diagonal) with 1/sum vector
-    matrix = matrix * norm_matrix #multiply the two. (effectively u are dividing each column by the sum of the column). WARNING: * is the matrix multiplication op[erator for scipy sparse matrices. For numpy arrays, it is element-wise product. MAke sure that matrix is a scipy.sparse matrix
+    matrix = matrix * norm_matrix #multiply the two. (effectively u are dividing each column by the sum of the column). WARNING: * is the matrix multiplication operator for scipy sparse matrices. For numpy arrays, it is element-wise product. MAke sure that matrix is a scipy.sparse matrix
 
     return  matrix, sum_vector 
 
@@ -155,6 +155,7 @@ def create_the_features_different_knockouts(raw_matrix, edge, gene_indexes, matr
             knockout_names.append(str(source)+'-')
 
     return knockout_names, score_of 
+
 
 def create_the_features_different_knockouts_iterative(raw_matrix, edges, gene_indexes, matrix, plus_targets_of_deletion, minus_targets_of_deletion, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
     '''fills one row of features for one sample (edge) for the features matrix to feed to the classifier.
