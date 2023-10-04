@@ -9,9 +9,12 @@ tuttto il data preproc in realta/ lo dovresti eliminare e  o mettere in un altra
 in cui metti anche : depod_scraping.py
 
 # Pipeline:
-
+## Preprocessing:
+-the data should look like blabla
 ## Inputs:
   shape of inputs:
   tran=ining data:
   .lbl.tsv
   .w8.tsv
+
+'python SIGNAL_ft_gen_iterative.py -h' for input help
