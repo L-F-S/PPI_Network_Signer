@@ -175,8 +175,8 @@ def create_the_features_different_knockouts_iterative(raw_matrix, edges, gene_in
     scores_of=[]
     knockout_names_of=[]
     for edge in edges:
-        # col1, col2, ind1, ind2 = create_defective_columns(raw_matrix, edge, gene_indexes)
-        defective_normalized_matrix = matrix#defective_norm_matrix_from_columns(matrix, col1, col2,ind1, ind2 )
+        col1, col2, ind1, ind2 = create_defective_columns(raw_matrix, edge, gene_indexes)
+        defective_normalized_matrix = defective_norm_matrix_from_columns(matrix, col1, col2,ind1, ind2 )
     
         score_of=[edge[0], edge[1]]
         knockout_names = [0,1]
