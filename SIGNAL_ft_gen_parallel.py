@@ -25,7 +25,7 @@ from score_edges import generate_similarity_matrix, create_the_features_differen
 ###############################################################################
 parser = argparse.ArgumentParser()
 parser.add_argument('datasets', type=str, nargs='*',
-                    help='dataset names:  options (and default) for S_cerevisiae: [\'kegg\',\'kpi\', \'ubiq\'],\
+                    help='dataset names:  options (and default) for S_cerevisiae: [\'patkar_kegg\',\'kpi\', \'ubiq\'],\
                         options (anmd default) for H_sapiens: [\'kegg\',\'PSP\',\'depod\',\'ubinet2\']')
 parser.add_argument('-c', dest='N_JOBS', type=int, nargs='?', default=8,
                     help='number of corse to assign')
@@ -50,7 +50,7 @@ args = parser.parse_args()
 N_JOBS = args.N_JOBS
 SPECIES = args.SPECIES
 if len(args.datasets) == 0:
-    datasets = ['kegg','kpi', 'ubiq'] if SPECIES == 'S_cerevisiae' else ['kegg','PSP','depod','ubinet2']
+    datasets = ['patkar_kegg','kpi', 'ubiq'] if SPECIES == 'S_cerevisiae' else ['kegg','PSP','depod','ubinet2']
 else:
     datasets = args.datasets
 print(N_JOBS, datasets)
