@@ -26,6 +26,7 @@ LBL_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'labels'+os.sep
 EDGES_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'edges'+os.sep 
 NET_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'network'+os.sep 
 PRT_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'perturbation_signatures'+os.sep
+DICT_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'dictionaries'+os.sep
 
 # output dirs
 FT_DIR=HOME_DIR+'output'+os.sep+SPECIES+os.sep+os.sep+'features'+os.sep
@@ -35,6 +36,7 @@ IMG_DIR=HOME_DIR+os.sep+'imgs'+os.sep+'v4'+os.sep+SPECIES+os.sep
 
 #File names:
 NET_FILE=SPECIES+'_'+ '_'.join(TRAIN_DATA)+'.nx'
+GENE_MAP_NAME = 'alias_2geneid.pkl'
 
 # Propagation parameters:
 PROPAGATE_ALPHA = 0.6
@@ -42,4 +44,4 @@ PROPAGATE_EPSILON = 1e-5
 PROPAGATE_ITERATIONS = 100
 
 # Multi-threading parameters:
-N_JOBS = 2
+N_JOBS = 8
