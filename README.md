@@ -18,3 +18,10 @@ in cui metti anche : depod_scraping.py
   .w8.tsv
 
 'python SIGNAL_ft_gen_iterative.py -h' for input help
+
+
+# Usage:
+step 1 feature creation:
+ci sono due modi di usare SIGNAL_ft_gen: 
+  1 chiamare gli input da linea di compando: python sugnal_ft_gen -a -b- c
+  2 importare le funzioni in un altro file (come dentro SIGNAL_pipeline dentro utility scripts) vederlo come esempio
