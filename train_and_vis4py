@@ -10,6 +10,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve, precision_recall_curve,  auc
 from random import seed, sample
+import pickle
 
 
 def log(dataname, AUROC, AUPR, logfile, DATE, SPECIES, pert_map, edgedatainbasenet='-', comments=''):
@@ -23,9 +24,11 @@ def log(dataname, AUROC, AUPR, logfile, DATE, SPECIES, pert_map, edgedatainbasen
 def load_features(OUTDIR, datanames, species):
     features={}
     for dataname in datanames:
-        features[dataname] = pd.read_csv(OUTDIR+dataname+'.ft.csv', sep=',', header=0, index_col=([0,1]))
+        with open(OUTDIR+dataname+'.ft','rb') as f:
+            features[dataname] = pickle.load(f)
     return features
-    
+
+
 
 def read_features(OUTDIR, DATE, which=['k','u','p'], whichinbase=['k','u','p']):
     labels=[]
@@ -159,7 +162,7 @@ def AUCs(classifier, features, labels):
     return roc_auc, pr_auc
     
 def k_fold(classifier, n_folds, x_train, y_train, dataname, IMG_DIR,\
-                  metric="ROC", plot=True, downsampling=False, upsampling=''):
+                  metric="ROC", plot=True, downsampling='', upsampling=''):
     x_train = pd.DataFrame(StandardScaler().fit_transform(x_train), columns=x_train.columns)
                            
      
@@ -176,8 +179,8 @@ def k_fold(classifier, n_folds, x_train, y_train, dataname, IMG_DIR,\
     for i, (train, test) in enumerate(cv.split(np.array(x_train), np.array(y_train))):
         #31-8 put downsamplint only after splitting:
 
-        if downsampling:
-            train = downsample(train, np.array(y_train.iloc[train]))
+        if downsampling=='_DS':
+            train = downsample(train, y_train.iloc[train])
             X, y = np.array(x_train.iloc[train]), np.array(y_train.iloc[train])
         X, y = upsample(upsampling, train, y_train.iloc[train], x_train.iloc[train])
         
