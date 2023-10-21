@@ -14,94 +14,84 @@ edges features table (created before with preprocess _all)
 
 
 import os
-
 import pandas  as pd
-from datetime import date
-from preproc_utils import load_training_data ,graph_from_dataframe, add_edges_from_labels
+from preproc_utils import load_training_data
 from train_and_vis3_5 import  load_features
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 import pickle
 import argparse
-
+from glob_vars import SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
+    EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR
 
 
 ##############################################################################
 #  INPUTS
 ##############################################################################
 parser = argparse.ArgumentParser()
-parser.add_argument('datasets', type=str, nargs='*',
-                    help='dataset names:  options (and default) for S_cerevisiae: [\'kegg\',\'kpi\', \'ubiq\'],\
+parser.add_argument('TRAIN_DATA', type=str, nargs='*',
+                    help='training dataset names:  options (and default) for S_cerevisiae: [\'kegg\',\'kpi\', \'ubiq\'],\
                         options (anmd default) for H_sapiens: [\'kegg\',\'PSP\',\'depod\',\'ubinet2\']')
-parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='S_cerevisiae',
+parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default=None,
                     help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
-parser.add_argument('-o', dest='OUTDIR', type=str, nargs='?', default=None,
-                    help='Optional, output directory')
-parser.add_argument('-p', dest='perturbation_filename', type=str, nargs='?', default='Holstege',
+parser.add_argument('-p', dest='PERT_MAP', type=str, nargs='?', default=None,
                     help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
-parser.add_argument('-i', dest='feature_table_path', type=str, nargs='?', default=None,
-                    help='Input directory')
-parser.add_argument('-m', dest='MODEL_DIR', type=str, nargs='?', default=None,
-                    help='pretrained model path')
 parser.add_argument('-f', dest='feature_table_name', type=str, nargs='?', default=None,
                     help='Features table name')
-parser.add_argument('-d', dest='work_dir', type=str, nargs='?', default=None,
-                    help='Optional, maybe temporary: work directory')
+parser.add_argument('-ld', dest='LBL_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of training labels')
+parser.add_argument('-ed', dest='EDGES_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of .edges file (with which edges to make features for)')
+parser.add_argument('-nd', dest='NET_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of network file (file must be a pickled networkx.DiGraph object)')
+parser.add_argument('-kd', dest='KO_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of deletion signatures files (files must be a pickled dictionary)')
+parser.add_argument('-fd', dest='FT_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of SIGNAL features (input for applySIGNAL)')
+parser.add_argument('-md', dest='MOD_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of trained models')
+parser.add_argument('-sd', dest='SIGNAL_DIR', type=str, nargs='?', default=None,
+                    help='Optional, directory of output SIGNAL scores')
 
 args = parser.parse_args()
 
-DATE=str(date.today())
-SPECIES=args.SPECIES
-if len(args.datasets) == 0:
-    datasets = ['kegg','kpi', 'ubiq'] if SPECIES == 'S_cerevisiae' else ['kegg','PSP','depod','ubinet2']
-else:
-    datasets = args.datasets
-dataset_name = '_'.join(datasets)
-pert_map=args.perturbation_filename  
-# # Servier directories:
-# HOME_DIR  =  '/home/bnet/lorenzos/signed/signedv3/'
-# INPUT_DIR=HOME_DIR+"input"+os.sep+SPECIES+os.sep
-# OUTDIR=HOME_DIR+'output'+os.sep+SPECIES+os.sep+'validation_out'
-# FEATURESDIR=OUTDIR
-# BASENETDIR=INPUT_DIR
+TRAIN_DATA = TRAIN_DATA if not args.TRAIN_DATA else args.TRAIN_DATA
 
-# Local directories
-if not args.work_dir:
-    SIGNAL_DIR = os.path.dirname(os.path.abspath(__file__))+os.sep
-else:
-    SIGNAL_DIR=args.work_dir+os.sep
-os.chdir(SIGNAL_DIR)
-TRAINING_DIR=SIGNAL_DIR+'features_and_labels'+os.sep+SPECIES+os.sep
-if not args.OUTDIR:
-    OUTDIR=SIGNAL_DIR+'output'+os.sep+SPECIES+os.sep
-else:
-    OUTDIR=args.OUTDIR
+SPECIES= SPECIES if not args.SPECIES else args.SPECIES
+PERT_MAP=PERT_MAP if not args.PERT_MAP else args.PERT_MAP
 
-if not args.MODEL_DIR:
-    MODEL_DIR=SIGNAL_DIR+'models_and_predictions'+os.sep+SPECIES+os.sep
-else:
-    MODEL_DIR=args.MODEL_DIR
+# input dirs:
+HOME_DIR = HOME_DIR
+os.chdir(HOME_DIR)
+LBL_DIR = LBL_DIR if not args.LBL_DIR else args.LBL_DIR
+EDGES_DIR = EDGES_DIR if not args.EDGES_DIR else args.EDGES_DIR
 
-feature_table_path=args.feature_table_path  # HOME_DIR+'collab norway'+os.sep+'SIGNAL pacitaxel target sign reconstruction'\+os.sep+ '2 SIGNAL score networks'+os.sep+'SIGNAL_features'+os.sep
-feature_table_name=args.feature_table_name  #'4088.edges_'+pert_map+'.ft.pkl'
-with open( feature_table_path+feature_table_name, 'rb') as f:
+# output dirs
+FT_DIR= FT_DIR if not args.FT_DIR else args.FT_DIR
+SIGNAL_DIR=SIGNAL_DIR if not args.SIGNAL_DIR else args.SIGNAL_DIR
+MOD_DIR=MOD_DIR if not args.MOD_DIR else args.MOD_DIR
+
+
+
+feature_table_name=args.feature_table_name  #'4088.edges_'+PERT_MAP+'.ft.pkl' 20/2023. should end in just .ft
+with open( FT_DIR+feature_table_name, 'rb') as f:
     features_table = pickle.load(f)
 
-   # TODO: da metterlo solo se si applya a tutto 
+   # da fare TODO: da metterlo solo se si applya a tutto 
 # CHUNKNAMES=['netedgesI','netedgesII','netedgesIII','netedgesIV','netedgesV','netedgesVI']
 # #print('Load edges (indexes) and features (columns) for base net')
 # netind={}
 # for chunk in CHUNKNAMES:
 #     with open(INPUT_DIR+chunk,'rb') as f:
 #         netind[chunk]=pickle.load(f)
-        #%%
-
+        
+#%%
 def predictSIGNAL(test_features_table, train=False):
     
     if train:
         print('Training classifier')
-        training_labels, training_labels_weights = load_training_data(TRAINING_DIR, datasets, SPECIES)
-        training_features_table = load_features(TRAINING_DIR, [i+'_'+pert_map for i in datasets], SPECIES)
+        training_labels, training_labels_weights = load_training_data(LBL_DIR, TRAIN_DATA, SPECIES)
+        training_features_table = load_features(FT_DIR, [i+'_'+PERT_MAP for i in TRAIN_DATA], SPECIES)
         training_labels=pd.concat(list(training_labels.values())) # works because python dictionaries are ordered in python3
         # training_labels=training_labels.iloc[1:] #temp solo x ADPBH_1 e 1000 (vedi log 30/01/2023)
         training_features_table= pd.concat(list(training_features_table.values()))
@@ -109,19 +99,21 @@ def predictSIGNAL(test_features_table, train=False):
         classifier.fit(StandardScaler().fit_transform(training_features_table), training_labels) 
     
     else:
-        with open(MODEL_DIR+dataset_name+'_'+pert_map+'.rf','rb') as f:
+        training_model_name = '_'.join(TRAIN_DATA)
+        with open(MOD_DIR+training_model_name+'_'+PERT_MAP+'.rf','rb') as f:
             classifier=pickle.load(f)
     print('caclulating SIGNAL scores')
     predictions = classifier.predict_proba(StandardScaler().fit_transform(test_features_table))
     predictions = pd.DataFrame(data=predictions, index=test_features_table.index, columns=['+','-'])
     return predictions['-']
-#%% predict SIGNAL score for given features table
+# predict SIGNAL score for given features table
 
 print('apply SIGNAL')
 SIGNALscores=predictSIGNAL(features_table, train=False)
-#%%
+#
 print('Exporting SIGNAL data')
-SIGNALscores.to_csv(OUTDIR+os.sep+feature_table_name+'.sgnl', sep=' ', header=False)
+SIGNALscore_filename=feature_table_name.rstrip('.ft.pkl')
+SIGNALscores.to_csv(SIGNAL_DIR+os.sep+SIGNALscore_filename+'.sgnl', sep=' ', header=False)
 
 
 #%% PREDICT ALL EDGES for different KT pairs
