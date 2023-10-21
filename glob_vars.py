@@ -35,13 +35,15 @@ MOD_DIR=HOME_DIR+'output'+os.sep+SPECIES+os.sep+os.sep+'models'+os.sep
 IMG_DIR=HOME_DIR+os.sep+'imgs'+os.sep+'v4'+os.sep+SPECIES+os.sep
 
 #File names:
-NET_FILE=SPECIES+'_'+ '_'.join(TRAIN_DATA)+'.nx'
-GENE_MAP_NAME = 'alias_2geneid.pkl'
+NET_FILE=SPECIES+'_'+ '_'.join(TRAIN_DATA)+'.nx' # Base network filename
+GENE_MAP_NAME = 'alias_2geneid.pkl'              # Gene name : id dictionary filename
 
 # Propagation parameters:
+    # These are parameters for the propagation algorithms in score_edges.py
 PROPAGATE_ALPHA = 0.6
 PROPAGATE_EPSILON = 1e-5
 PROPAGATE_ITERATIONS = 100
 
 # Multi-threading parameters:
+    # for SIGNAL_ft_gen_PARALLEL.py
 N_JOBS = 8
