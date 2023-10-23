@@ -21,7 +21,11 @@ in cui metti anche : depod_scraping.py
 
 
 # Usage:
-step 1 feature creation:
-ci sono due modi di usare SIGNAL_ft_gen: 
-  1 chiamare gli input da linea di compando: python sugnal_ft_gen -a -b- c
-  2 importare le funzioni in un altro file (come dentro SIGNAL_pipeline dentro utility scripts) vederlo come esempio
+  - step 1 feature creation:
+    
+       SIGNAL_ft_gen_iterative.py can be called in two main ways to generate features:
+      1- from the command line 
+      `python SIGNAL_ft_gen_iterative.py -s S_cerevisiae -e edges_file -n network_file -p perturbations_file`
+      2- import functions in a different python script by:
+      'from SIGNAL_ft_gen_iterative import generate_similarity_matrix_wrapper, generate_features_different_knockouts_iterative`
+      for multi-threading option, use SIGNAL_ft_gen_parallel.py and import generate_features_different_knockouts function
