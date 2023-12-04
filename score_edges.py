@@ -2,9 +2,13 @@
 """
 Created on Tue May  4 11:33:35 2021
 
-@author: los4
-"""
+@author: L-F-S
 
+###############################################################################
+#                  SIGNAL feature creation algorithm
+###############################################################################
+
+"""
 import numpy  as np
 import scipy
 import scipy.linalg
@@ -12,26 +16,29 @@ import math
 import warnings
 warnings.filterwarnings("ignore")
 
-###############################################################################
-#  GENERATE FEATURES
-###############################################################################
-
-
 # Simple propagation:
     
     
 def generate_similarity_matrix(matrix):
-    """Normalize a similarity matrix
-    by number of outgoing edges from node.
-    this normalization works for  both
-    directed and undirected graphs
-    inputs:
+    """
+    AD^-1 matrix normalization.
+    Normalize an adjacency matrix by number of outgoing edges from node.
+    Works for  both directed and undirected graphs.
+    Inputs:
         matrix: scipy.sparse._csr.csr_matrix"""
 
-    sum_vector = matrix.sum(axis=0).A1 # sum over rows (along columns), then get a flattened array
-    sum_vector[sum_vector == 0] = 1  #substitute 0s with ones , to avoid division by 0 later
-    norm_matrix = scipy.sparse.diags(1/sum_vector) # create a diagonal matrix (all 0s except diagonal) with 1/sum vector
-    matrix = matrix * norm_matrix #multiply the two. (effectively u are dividing each column by the sum of the column). WARNING: * is the matrix multiplication operator for scipy sparse matrices. For numpy arrays, it is element-wise product. MAke sure that matrix is a scipy.sparse matrix
+    if not type(matrix)==scipy.sparse._csr.csr_matrix:
+        raise ValueError('Wrong matrix type:', type(matrix), 'Convert to scipy.sparse._csr.csr_matrix.')
+
+    # Create inverse diagonal matrix of inverse row sums
+    sum_vector = matrix.sum(axis=0).A1 
+    sum_vector[sum_vector == 0] = 1  
+    norm_matrix = scipy.sparse.diags(1/sum_vector) 
+
+    # multiply raw matrix with diagonal matrix.
+    # WARNING: * is the matrix multiplication operator for scipy sparse matrices. 
+    # For numpy arrays, it is element-wise product: Make sure that matrix is a scipy.sparse matrix
+    matrix = matrix * norm_matrix 
 
     return  matrix, sum_vector 
 
