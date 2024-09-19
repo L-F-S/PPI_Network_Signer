@@ -20,6 +20,7 @@ Major refactoring. Edges input are now pkl of lsits of tuples.
 To update network, traning edges file, and perturbation dictionaries,
 run preprocessing scripts inutility_scripts
 """
+
 import os
 import argparse
 import pickle
@@ -40,8 +41,8 @@ parser.add_argument('-e', dest='edges', type=str, nargs='*', default=None,
                         Edges must be part of base PPI network.')
 parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='S_cerevisiae',
                     help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
-parser.add_argument('-p', dest='PERT_MAP', type=str, nargs='?', default='Holstege',
-                    help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
+parser.add_argument('-p', dest='PERT_MAP', type=str, nargs='?', default='Kemmeren',
+                    help='default: \'Kemmeren\' , other options: [\'reimand\', ADPBH, CMGE..]')
 parser.add_argument('-ld', dest='LBL_DIR', type=str, nargs='?', default=None,
                     help='Optional, directory of training labels')
 parser.add_argument('-ed', dest='EDGES_DIR', type=str, nargs='?', default=None,
@@ -119,7 +120,8 @@ print()
 def generate_similarity_matrix_wrapper(graph):
     print('Generating similarity matrix..')
     genes = sorted(graph.nodes)
-    raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
+    # raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
+    raw_matrix = networkx.to_scipy_sparse_array(graph, genes, format='csc').T
     matrix, raw_col_sums = generate_similarity_matrix(raw_matrix) #normalized similarity matrix
     num_genes     = len(genes)
     gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
