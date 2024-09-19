@@ -26,6 +26,7 @@ import argparse
 import pickle
 import pandas as pd
 import networkx
+import scipy
 from time import time
 from score_edges import generate_similarity_matrix, create_the_features_different_knockouts_iterative
 from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR, LBL_DIR,\
@@ -121,7 +122,8 @@ def generate_similarity_matrix_wrapper(graph):
     print('Generating similarity matrix..')
     genes = sorted(graph.nodes)
     # raw_matrix = networkx.to_scipy_sparse_matrix(graph, genes, format='csc').T
-    raw_matrix = networkx.to_scipy_sparse_array(graph, genes, format='csc').T
+    raw_array = networkx.to_scipy_sparse_array(graph, genes, format='csc').T
+    raw_matrix = scipy.sparse._csr.csr_matrix(raw_array)
     matrix, raw_col_sums = generate_similarity_matrix(raw_matrix) #normalized similarity matrix
     num_genes     = len(genes)
     gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
