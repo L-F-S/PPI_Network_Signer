@@ -25,7 +25,7 @@ from glob_vars import SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR
 
 
-def predictSIGNAL(test_features_table, train=False):
+def predictSIGNAL(test_features_table, training_model_name, MOD_DIR, train=False):
     'test_features_table: pd.DataFrame'
     print(len(test_features_table.index),test_features_table.index[0],test_features_table.index[-1])
     
@@ -40,8 +40,7 @@ def predictSIGNAL(test_features_table, train=False):
         classifier.fit(StandardScaler().fit_transform(training_features_table), training_labels) 
     
     else:
-        training_model_name = '_'.join(TRAIN_DATA)
-        with open(MOD_DIR+training_model_name+'_'+PERT_MAP+'.rf','rb') as f:
+        with open(MOD_DIR+training_model_name,'rb') as f:
             classifier=pickle.load(f)
     print('caclulating SIGNAL scores')
     predictions = classifier.predict_proba(StandardScaler().fit_transform(test_features_table))
@@ -49,7 +48,7 @@ def predictSIGNAL(test_features_table, train=False):
     return predictions['-']
 #%%
 def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
-    EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR):
+    EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR, w=False):
     ##############################################################################
     #  INPUTS
     ##############################################################################
@@ -60,7 +59,7 @@ def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default=None,
                         help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
     parser.add_argument('-p', dest='PERT_MAP', type=str, nargs='?', default=None,
-                        help='default: \'Holstege\' , other options: [\'reimand\', ADPBH, CMGE..]')
+                        help='default: \'Kemmeren\' , other options: [\'reimand\', ADPBH, CMGE..]')
     parser.add_argument('-f', dest='feature_table_name', type=str, nargs='?', default=None,
                         help='Features table name')
     parser.add_argument('-ld', dest='LBL_DIR', type=str, nargs='?', default=None,
@@ -96,18 +95,21 @@ def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     SIGNAL_DIR=SIGNAL_DIR if not args.SIGNAL_DIR else args.SIGNAL_DIR
     MOD_DIR=MOD_DIR if not args.MOD_DIR else args.MOD_DIR
     
-    
-    to_concat=[]
-    for data in TRAIN_DATA:
-        print(data)
-        feature_table_name=data+'_'+PERT_MAP+'.ft' if not args.feature_table_name  else args.feature_table_name
+    if not args.feature_table_name:
+        to_concat=[]
+        for data in TRAIN_DATA:
+            print(data)
+            feature_table_name=data+'_'+PERT_MAP+'.ft' 
+            with open( FT_DIR+feature_table_name, 'rb') as f:
+                tmp_features_table = pickle.load(f)
+            to_concat.append(tmp_features_table)
+        features_table = pd.concat(to_concat)
+    else:
+        feature_table_name=args.feature_table_name
         with open( FT_DIR+feature_table_name, 'rb') as f:
-            tmp_features_table = pickle.load(f)
-        to_concat.append(tmp_features_table)
-    features_table = pd.concat(to_concat)
+            features_table = pickle.load(f)
     
     
-       # da fare TODO: da metterlo solo se si applya a tutto 
     # CHUNKNAMES=['netedgesI','netedgesII','netedgesIII','netedgesIV','netedgesV','netedgesVI']
     # #print('Load edges (indexes) and features (columns) for base net')
     # netind={}
@@ -116,13 +118,14 @@ def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     #         netind[chunk]=pickle.load(f)
     
     # predict SIGNAL score for given features table
-    
-    SIGNALscores=predictSIGNAL(features_table, train=False)
+    tmp = '_'.join(TRAIN_DATA)
+    training_model_name=tmp+'_'+PERT_MAP+'.rf'
+    SIGNALscores=predictSIGNAL(features_table, training_model_name, MOD_DIR, train=False)
     print(SIGNALscores)
     #
     print('Exporting SIGNAL data')
     SIGNALscore_filename=feature_table_name.rstrip('.ft')
-    # SIGNALscores.to_csv(SIGNAL_DIR+os.sep+SIGNALscore_filename+'.sgnl', sep=' ', header=False)
+    SIGNALscores.to_csv(SIGNAL_DIR+os.sep+SIGNALscore_filename+'.sgnl', sep=' ', header=False)
     return
     
 
