@@ -25,6 +25,7 @@ import argparse
 import pickle
 import pandas as pd
 import networkx
+import scipy
 from time import time
 from joblib import Parallel, delayed
 from score_edges import generate_similarity_matrix, create_the_features_different_knockouts
@@ -125,7 +126,8 @@ print()
 def generate_similarity_matrix_wrapper(graph):
     print('Generating similarity matrix..')
     genes = sorted(graph.nodes)
-    raw_matrix = networkx.to_scipy_sparse_array(graph, genes, format='csc').T
+    raw_array = networkx.to_scipy_sparse_array(graph, genes, format='csc').T
+    raw_matrix = scipy.sparse._csr.csr_matrix(raw_array)
     matrix, raw_col_sums = generate_similarity_matrix(raw_matrix) #normalized similarity matrix
     num_genes     = len(genes)
     gene_indexes  = dict([(gene, index) for (index, gene) in enumerate(genes)]) #all genes present in matrix
@@ -141,13 +143,30 @@ print('..')
 # The slow part!
 
 print('Number of threads:', N_JOBS)
+# for name, edges in zip(names, edges_list):
+#     start=time()
+#     packed_results = Parallel(n_jobs=N_JOBS)(delayed(create_the_features_different_knockouts)\
+#                                 (raw_matrix, edge, gene_indexes, matrix, plus_targets_of_deletion, minus_targets_of_deletion, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)\
+#                                     for edge in edges)
+#     print("time passed", time()-start)
+#     knockout_names, results =zip(*packed_results)
+#     data = pd.DataFrame().from_records(results, index=[0,1], columns = knockout_names[0])
+#     with open(FT_DIR+name+'_'+PERT_MAP+'.ft','wb') as f:
+#         pickle.dump(data, f)
+#%% #%% Optimized parallel version 26-09-2024. WORKING.
+from score_edges import  create_the_features_different_knockouts_parallel_optimized, create_the_features_different_knockouts_parallel_optimized_gpu
 for name, edges in zip(names, edges_list):
     start=time()
-    packed_results = Parallel(n_jobs=N_JOBS)(delayed(create_the_features_different_knockouts)\
-                                (raw_matrix, edge, gene_indexes, matrix, plus_targets_of_deletion, minus_targets_of_deletion, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)\
-                                    for edge in edges)
+    feature_matrix=create_the_features_different_knockouts_parallel_optimized(N_JOBS,edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
+    
+    # cupy accellerated GPU version (requires cupy)
+    # feature_matrix=create_the_features_different_knockouts_parallel_optimized_gpu(N_JOBS,edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
+    
+    
+    
+    pluskeys=[str(source)+'+' for source in plus_targets_of_deletion.keys()]
+    minuskeys=[str(source)+'-' for source in minus_targets_of_deletion.keys()]
+    dataparal =  pd.DataFrame(feature_matrix, index=pd.MultiIndex.from_tuples(edges, names=[0,1]), columns = pluskeys+minuskeys)
     print("time passed", time()-start)
-    knockout_names, results =zip(*packed_results)
-    data = pd.DataFrame().from_records(results, index=[0,1], columns = knockout_names[0])
     with open(FT_DIR+name+'_'+PERT_MAP+'.ft','wb') as f:
-        pickle.dump(data, f)
+        pickle.dump(dataparal, f)
