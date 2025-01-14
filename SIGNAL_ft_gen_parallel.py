@@ -33,7 +33,7 @@ from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, NET_DIR, PRT_DIR, NET_FILE, PROPAGATE_ALPHA,\
     PROPAGATE_EPSILON, PROPAGATE_ITERATIONS, N_JOBS
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description='WARNING: ALWAYS specify species of intrest in glob_vars.py before running')
 parser.add_argument('-e', dest='edges', type=str, nargs='*', default=None,
                     help='Optional. Network edges to create features for.\
                         Options: None: creates features for training edges only\
@@ -84,18 +84,19 @@ print('-------> SIGNAL features creation <-------')
 print('------------------------------------------')
 print()
 print('>Inputs:')
-
+print('\t -Species:', SPECIES)
 # Load Network
 with open(NET_DIR+NET_FILE, 'rb') as f:
     graph=pickle.load(f)  
 print('\t -Base network:', len(graph.nodes),'nodes;',len(graph.edges),'(directed) edges.')
 
 # Load perturbation signatures:
+
 with open(PRT_DIR+'plus_targets_'+PERT_MAP+'.pkl', 'rb') as f:
     plus_targets_of_deletion = pickle.load(f)
 with open(PRT_DIR+'minus_targets_'+PERT_MAP+'.pkl', 'rb') as f:
     minus_targets_of_deletion = pickle.load(f)
-print('\t -Perturbation signatures:\n\t\t- Positive knockout experiment targets:',\
+print('\t -Perturbation signatures from '+PERT_MAP+':\n\t\t- Positive knockout experiment targets:',\
       len(plus_targets_of_deletion),'\n\t\t- Negative knockout experiment targets:',len(minus_targets_of_deletion))
 
 # Load Edges  
@@ -154,7 +155,9 @@ print('Number of threads:', N_JOBS)
 #     with open(FT_DIR+name+'_'+PERT_MAP+'.ft','wb') as f:
 #         pickle.dump(data, f)
 #%% #%% Optimized parallel version 26-09-2024. WORKING.
-from score_edges import  create_the_features_different_knockouts_parallel_optimized, create_the_features_different_knockouts_parallel_optimized_gpu
+from score_edges import  create_the_features_different_knockouts_parallel_optimized
+# from score_edges import create_the_features_different_knockouts_parallel_optimized_gpu
+
 for name, edges in zip(names, edges_list):
     start=time()
     feature_matrix=create_the_features_different_knockouts_parallel_optimized(N_JOBS,edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
