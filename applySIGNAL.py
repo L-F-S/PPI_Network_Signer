@@ -40,13 +40,16 @@ def predictSIGNAL(test_features_table, training_model_name, MOD_DIR, train=False
         classifier.fit(StandardScaler().fit_transform(training_features_table), training_labels) 
     
     else:
-        with open(MOD_DIR+training_model_name,'rb') as f:
-            classifier=pickle.load(f)
+        try:
+            with open(MOD_DIR+training_model_name,'rb') as f:
+                classifier=pickle.load(f)
+        except:
+            raise FileNotFoundError('Re-run predictSIGNAL with train=True to train classifier for given train set')
     print('caclulating SIGNAL scores')
     predictions = classifier.predict_proba(StandardScaler().fit_transform(test_features_table))
     predictions = pd.DataFrame(data=predictions, index=test_features_table.index, columns=['+','-'])
     return predictions['-']
-#%%
+
 def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR, w=False):
     ##############################################################################
@@ -104,12 +107,12 @@ def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
                 tmp_features_table = pickle.load(f)
             to_concat.append(tmp_features_table)
         features_table = pd.concat(to_concat)
+        feature_table_name='_'.join(TRAIN_DATA)+'.ft'
     else:
         feature_table_name=args.feature_table_name
         with open( FT_DIR+feature_table_name, 'rb') as f:
             features_table = pickle.load(f)
-    
-    
+    print('ft tabl name:',feature_table_name)
     # CHUNKNAMES=['netedgesI','netedgesII','netedgesIII','netedgesIV','netedgesV','netedgesVI']
     # #print('Load edges (indexes) and features (columns) for base net')
     # netind={}
@@ -120,21 +123,22 @@ def main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     # predict SIGNAL score for given features table
     tmp = '_'.join(TRAIN_DATA)
     training_model_name=tmp+'_'+PERT_MAP+'.rf'
+    print(training_model_name)
     SIGNALscores=predictSIGNAL(features_table, training_model_name, MOD_DIR, train=False)
     print(SIGNALscores)
     #
     print('Exporting SIGNAL data')
-    SIGNALscore_filename=feature_table_name.rstrip('.ft')
+    SIGNALscore_filename=feature_table_name.rstrip('.ft')+'_'+training_model_name.rstrip('.rf')
+    print(SIGNALscore_filename)
     SIGNALscores.to_csv(SIGNAL_DIR+os.sep+SIGNALscore_filename+'.sgnl', sep=' ', header=False)
     return
     
 
 
-#%%
+#%% apply SIGNAL to all train data:
 if __name__ == '__main__':
     main(SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
         EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR)
-    
 #%% PREDICT ALL EDGES for different KT pairs
 # N_JOBS=64
 # from joblib import Parallel, delayed
