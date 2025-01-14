@@ -33,7 +33,7 @@ from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, NET_DIR, PRT_DIR, NET_FILE, PROPAGATE_ALPHA,\
     PROPAGATE_EPSILON, PROPAGATE_ITERATIONS
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description='WARNING: ALWAYS specify species of intrest in glob_vars.py before running')
 parser.add_argument('-e', dest='edges', type=str, nargs='*', default=None,
                     help='Optional. Network edges to create features for.\
                         Options: None: creates features for training edges only\
@@ -43,7 +43,7 @@ parser.add_argument('-e', dest='edges', type=str, nargs='*', default=None,
 parser.add_argument('-s', dest='SPECIES', type=str, nargs='?', default='S_cerevisiae',
                     help='species: [\'H_sapiens\', \'S_cerevisiae\']\ndefault: S_cerevisiae')
 parser.add_argument('-p', dest='PERT_MAP', type=str, nargs='?', default='Kemmeren',
-                    help='default: \'Kemmeren\' , other options: [\'reimand\', ADPBH, CMGE..]')
+                    help='default: \'Kemmeren\' , other options: [\'reimand\' (yeast), CMGE (human)]')
 parser.add_argument('-ld', dest='LBL_DIR', type=str, nargs='?', default=None,
                     help='Optional, directory of training labels')
 parser.add_argument('-ed', dest='EDGES_DIR', type=str, nargs='?', default=None,
@@ -61,6 +61,7 @@ args = parser.parse_args()
 
 SPECIES= SPECIES if not args.SPECIES else args.SPECIES
 PERT_MAP=PERT_MAP if not args.PERT_MAP else args.PERT_MAP
+    
 
 # input dirs:
 HOME_DIR = HOME_DIR
@@ -80,6 +81,7 @@ print('-------> SIGNAL features creation <-------')
 print('------------------------------------------')
 print()
 print('>Inputs:')
+print('\t -Species:', SPECIES)
 # Load Network
 with open(NET_DIR+NET_FILE, 'rb') as f:
     graph=pickle.load(f)  
@@ -90,7 +92,7 @@ with open(PRT_DIR+'plus_targets_'+PERT_MAP+'.pkl', 'rb') as f:
     plus_targets_of_deletion = pickle.load(f)
 with open(PRT_DIR+'minus_targets_'+PERT_MAP+'.pkl', 'rb') as f:
     minus_targets_of_deletion = pickle.load(f)
-print('\t -Perturbation signatures:\n\t\t- Positive knockout experiment targets:',\
+print('\t -Perturbation signatures from '+PERT_MAP+':\n\t\t- Positive knockout experiment targets:',\
       len(plus_targets_of_deletion),'\n\t\t- Negative knockout experiment targets:',len(minus_targets_of_deletion))
 
 # Load Edges  
@@ -150,14 +152,16 @@ print('..')
 #     with open(FT_DIR+name+'_'+PERT_MAP+'.ft','wb') as f:
 #         pickle.dump(data, f)
 #%% Optimized iterative version 26-09-2024. WORKING.
-from score_edges import  create_the_features_different_knockouts_iterative_optimized, create_the_features_different_knockouts_optimized_gpu
+from score_edges import  create_the_features_different_knockouts_iterative_optimized
+# from score_edges import create_the_features_different_knockouts_iterative_optimized_gpu
+
 for name, edges in zip(names, edges_list):
     print(name)
     start=time()
     feature_matrix=create_the_features_different_knockouts_iterative_optimized(edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
     
     # cupy accellerated GPU version (requires cupy)
-    # feature_matrix=create_the_features_different_knockouts_optimized_gpu(edges[:5], plus_targets_of_deletion, minus_targets_of_deletion, cp_raw_matrix, cp_matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
+    # feature_matrix=create_the_features_different_knockouts_iterative_optimized_gpu(edges[:5], plus_targets_of_deletion, minus_targets_of_deletion, cp_raw_matrix, cp_matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
     
     pluskeys=[str(source)+'+' for source in plus_targets_of_deletion.keys()]
     minuskeys=[str(source)+'-' for source in minus_targets_of_deletion.keys()]
