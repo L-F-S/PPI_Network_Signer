@@ -2,7 +2,8 @@
 ## SIGN Annotation aLgorithm
 Assign sign (+ or -) to directed edges of protein-protein interaction networks
 
-[Figure1-2.pdf](https://github.com/user-attachments/files/20054855/Figure1-2.pdf)
+![Figure 1](https://github.com/user-attachments/assets/0cf76fd6-c0d4-4b6b-a8ed-6663156b7d12)
+
 
 TODO: in un futuro lontano che renderai la repo pubblica, controlla che utils/extract_kegg_interactions.py funga dentro sta repo
 
