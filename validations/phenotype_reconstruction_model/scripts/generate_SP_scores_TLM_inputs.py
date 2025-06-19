@@ -28,11 +28,9 @@ import pickle
 import networkx as nx
 import collections
 import sys
-from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR, LBL_DIR,FT_DIR,\
-    PRT_DIR,DICT_DIR,DICT_FILE, NET_DIR,ANAT_VAL_SIGNAL_OUT,ANAT_VAL_HOME,  get_terms, get_anchors,\
-    EDGES_DIR,  SIGNAL_DIR, MOD_DIR, KO_VAL_HOME, KO_VAL_OUT,\
-    ANAT_VAL_HOME, ANAT_VAL_SIGNAL_OUT
-
+from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR,\
+    DICT_DIR,DICT_FILE, NET_DIR,ANAT_VAL_SIGNAL_OUT,ANAT_VAL_HOME,  get_terms, get_anchors,\
+     SIGNAL_DIR,  KO_VAL_OUT
 ##############################################################################
 #  INPUTS 
 ##############################################################################
@@ -44,13 +42,15 @@ with open(NET_DIR+NET_FILE, 'rb') as f:
     BASE_GRAPH=pickle.load(f) 
 
 val_data_name='TLM_all_KOterms'#'TLM_strong_normal'#
-# #v2comment out this part:
-SIGNAL_net_name=val_data_name+'.edges_'+PERT_MAP+'.sgnl' #signal nets are csv files
+
+# 
+tmp = '_'.join(TRAIN_DATA)
+SIGNAL_net_name='TLM_all_KOterms.edges_Kemmeren._'+tmp+'_'+PERT_MAP+'.sgnl' #signal nets are csv files
 SIGNAL_scores = pd.read_csv(ANAT_VAL_SIGNAL_OUT+SIGNAL_net_name, sep=' ', header=None, names=['id1','id2','SIGNAL'])
 ALL_GENES = np.unique(list(SIGNAL_scores['id1'])+list(SIGNAL_scores['id2']))
 #%% preoprocess SIGNAL_scores
 # filter anchorsand terms
-TERMS=get_terms(termfile=val_data_name+'_phenotype')
+TERMS=get_terms(termfile=val_data_name+'_phenotype_labelled')
 ANCHORS=get_anchors()
 with open( DICT_DIR+DICT_FILE, 'rb') as f:
     alias_2geneid = pickle.load(f)
@@ -61,7 +61,6 @@ for anchor in ANCHORS:
     #v2dont care if geenes are not in anat net, cos im looking across whole network
     if not anchorid in ALL_GENES:
         anchor_to_skip.append(anchor)
-# v2: remove this
 t=0
 TERMS2=[]
 for term in TERMS:
@@ -94,11 +93,6 @@ def label(x):
         return('T')
     else:
         return('O')
-#v2  remove elow lines:
-# SIGNAL_scores['name1'] = SIGNAL_scores['id1'].apply( lambda x: renamegene(x))
-# SIGNAL_scores['name2'] = SIGNAL_scores['id2'].apply( lambda x: renamegene(x))
-# SIGNAL_scores['name1lbl'] = SIGNAL_scores['name1'].apply( lambda x: label(x))
-# SIGNAL_scores['name2lbl'] = SIGNAL_scores['name2'].apply( lambda x: label(x))
 #%% extract signal values for all shortest paths
 def generate_edges_from_path(path):
     edges=[]
@@ -146,7 +140,7 @@ def find_SP_dicts(SIGNAL_net, anchors, terms):
     return SIGNAL_of, SIGNAL_of_avg
 
 
-#%% run with ANAT TLM SIGNAL network   v2: non lo faccio piu xke uso il full base net only      
+#%% run with ANAT TLM SIGNAL network     
 # ANAT_net = nx.from_pandas_edgelist(SIGNAL_scores, 'name1','name2','SIGNAL') # turn to network
 # SIGNAL_of, SIGNAL_of_avg = find_SP_dicts(ANAT_net, ANCHORS, TERMS)
 #%% ..or run with SIGNAL full base network 
@@ -202,7 +196,7 @@ def simplify(x):
         return 'L'
     if x == 'slightly long' or x=='sl':
         return 'SL'
-    if x == 'Short' or x =='short':
+    if x == 'Short' or x =='short' or x =='short ':
         return 'S'
     if x=='slightly short' or x=='ss':
         return 'SS'
@@ -211,32 +205,7 @@ def simplify(x):
 TLMphenotypesdf['pht']=TLMphenotypesdf['Telomere Phenotype*'].apply(lambda x: simplify(x))
 all_long_tags=['VL','L','SL', 'DAmP L']
 all_short_tags=['VS','S','SS', 'DAmP S']
-#%% enlarge dictionary to match Reconstuct_KT_pairs required input, and split based on label
-
-# def label_reshape(SIGNAL_of, flag):
-#     SIGNAL_of_2_L = {}
-#     SIGNAL_of_2_S = {}
-#     for pair, SP in SIGNAL_of.items():
-#         anchor=pair[0]
-#         term=pair[1]
-        
-#         label=TLMphenotypesdf['pht'][TLMphenotypesdf['Gene (corrected for NGE)']==term].iloc[0]
-        
-#         if  label.endswith(flag):
-            
-#             # build a nested dictionary by splitting each A-T key in a dictionary of Ts: SPs p per every A
-#             if not anchor in SIGNAL_of_2_L.keys():
-#                 SIGNAL_of_2_L[anchor] = {}
-    
-#             SIGNAL_of_2_L[anchor][term] = SP
-            
-            
-#         else:
-            
-#             if not anchor in SIGNAL_of_2_S.keys():
-#                 SIGNAL_of_2_S[anchor] = {}
-#             SIGNAL_of_2_S[anchor][term] = SP
-#     return SIGNAL_of_2_L, SIGNAL_of_2_S
+#%% reshape dictionary to match Reconstuct_KT_pairs required input, and split based on label
 def label_reshape(SIGNAL_of, lflags, sflags): #v2, specific label
     SIGNAL_of_2_L = {}
     SIGNAL_of_2_S = {}
