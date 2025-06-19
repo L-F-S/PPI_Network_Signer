@@ -11,10 +11,10 @@ To run with the output of PARALLELgenerate_SP_scores.py
 """
 
 import os
-HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-# HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-DIRECTED_DIR = HOME_DIR+"network_signing"+os.sep
-os.chdir(DIRECTED_DIR)
+import sys
+HOME_DIR='G:'+os.sep+'Il Mio Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep+'network_signing'+os.sep+'SIGNAL_release'+os.sep
+HOME_DIR='G:'+os.sep+'My Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep+'network_signing'+os.sep+'SIGNAL_release'+os.sep
+sys.path.append(HOME_DIR)
 import pandas  as pd
 import numpy  as np
 from datetime import date
@@ -22,10 +22,9 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import pickle
-import itertools
-import networkx as nx
 from glob_vars import SPECIES, PERT_MAP, TRAIN_DATA, HOME_DIR, LBL_DIR,\
-    EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR, KO_VAL_HOME, KO_VAL_OUT, IMG_DIR
+    EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR, KO_VAL_HOME,\
+        KO_VAL_OUT, IMG_DIR, tau, nSPS
     
 ##############################################################################
 #  INPUTS
@@ -92,7 +91,7 @@ def calcROC(PLUSTSP, MINUSTSP,t=0.5, n_SPs=0):
     return fprs, tprs, s_thresholds
 
 #%% calculate signal:
-fprs, tprs, s_thresholds = calcROC(PLUSTSP, MINUSTSP, 0.5, 100)
+fprs, tprs, s_thresholds = calcROC(PLUSTSP, MINUSTSP, t=tau, n_SPs=nSPS)
 print(auc(fprs, tprs))
 # print(s_thresholds)
 #%% 
@@ -108,9 +107,12 @@ all_short_tags=['VS','S','SS', 'DAmP S']
 #%%
 def calcROC_SIGNAL_only(PLUSTSP, MINUSTSP,t=0.5, n_SPs=0, precrec=False):
     ''' taking into account reversal of signs
-    Input is a dictionary of dictionaries of SPs of Signal scores (instead of wd array of (1-SIGNAL, SIGNAL) for KT data )
-    WARNING: signs are inverted wrt KO validation, because KO actually are supposed to show the inverse of the sign
-    (gene upregulated with KO = downregulated in standard condition ), since this function is copied from calcROC,
+    Input is a dictionary of dictionaries of SPs of Signal scores 
+    (instead of wd array of (1-SIGNAL, SIGNAL) for KT data )
+    WARNING: signs are inverted wrt KO validation,
+    because KO actually are supposed to show the inverse of the sign
+    (gene upregulated with KO = downregulated in standard condition ), 
+    since this function is copied from calcROC,
     I kept the signs unchanged, so you currently need to input the - with the + and vice versa.
     '''
     Y_true = []
@@ -163,9 +165,6 @@ def calcROC_SIGNAL_only(PLUSTSP, MINUSTSP,t=0.5, n_SPs=0, precrec=False):
 # print(s_thresholds)
 
 #%%
-t=0.5
-nSPS=100
-
 long_tags=['VL', 'DAmP L']
 short_tags=['VS', 'DAmP S']
 spname_short='_SP_SIGNALv2_'+'_'.join(short_tags)
@@ -175,8 +174,8 @@ with open(KO_VAL_OUT+os.sep+val_data_name+spname_short+dataset_name+'_'+PERT_MAP
 with open(KO_VAL_OUT+os.sep+val_data_name+spname_long+dataset_name+'_'+PERT_MAP+'.pkl', 'rb') as f:
     TLML=pickle.load(f)
 
-fprs, tprs, s_thresholds, datapointplus, datapointminus  = calcROC_SIGNAL_only(TLMS, TLML,t, nSPS)
+fprs, tprs, s_thresholds, datapointplus, datapointminus  = calcROC_SIGNAL_only(TLMS, TLML,t=tau, n_SPs=nSPS)
 current_auc=np.round(auc(fprs, tprs),2)
-print(t, nSPS)
+print(tau, nSPS)
 print(short_tags, long_tags, current_auc, datapointplus, datapointminus)
 
