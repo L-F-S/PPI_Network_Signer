@@ -1,0 +1,458 @@
+Gene (corrected for NGE)	Telomere Phenotype*
+AAR2	DAmP Long
+ADE12	S
+ADO1	S
+AGP2	S
+AHC2	L
+ALA1	DAmP Short
+APC4	DAmP Short
+APE3	S
+RAD27	L
+ARC15	DAmP Short
+ARC35	DAmP Short
+ARD1	VL
+ARF1	ss
+ARG2	S
+ARP2	DAmP Short
+ARP3	DAmP Short
+ARV1	S
+ASC1	L
+ATC1	sl
+MAK3	S
+SPP382	L
+BBP1	DAmP Long
+BEM2	sl
+BEM4	S
+BRE1	ss
+BRE2	S
+BRO1	S
+BUD16	S
+BUD21	sl
+BUD23	sl
+BUD32	short
+CAX4	VS
+CBC2	L
+CBF5	DAmP Long
+CCW14	S
+CDC13	DAmP Long
+CDC16	DAmP Long
+CDC19	DAmP Long
+CDC21	short
+CDC34	DAmP Short
+CDC45	Short
+CDC73	S
+CDC8	short
+CDH1	sl
+CGI121	short
+CHO2	sl
+CMD1	DAmP Long
+COG3	DAmP Short
+CSM1	sl
+CSR2	ss
+CST6	ss
+CTF18	short
+CTF8	ss
+CTK1	S
+CYC8	ss
+DAD2	DAmP Short
+DCC1	ss
+DDC1	short
+DEP1	S
+DIG1	sl
+DOA4	S
+DUN1	ss
+EAP1	S
+EBS1	ss
+ELG1	L
+ERG2	ss
+SAP155	S
+EST1	VS
+EST2	VS
+EST3	VS
+FAL1	DAmP Short
+FCP1	DAmP Short
+FMP26	sl
+RPS30B	sl
+NSR1	sl
+MED6	ss
+FYV6	sl
+FZO1	Long
+GAL11	S
+GCD1	DAmP Long
+PTA1	S
+GLO4	sl
+GON7	S
+GPB2	ss
+GPI8	DAmP Long
+GTR1	S
+GTR2	ss
+GUP1	S
+GUP2	sl
+HCH1	ss
+HCM1	L
+HCR1	ss
+HDA2	S
+HEK2	Long
+HEM4	DAmP Long
+HFI1	ss
+HIT1	sl
+HMO1	L
+HPR1	L
+HRT1	DAmP Short
+HSC82	S
+HSP104	sl
+HSP82	short
+HST1	S
+HTL1	L
+PMR1	S
+ILV5	DAmP Short
+IMG2	L
+IPK2	long
+ISA1	S
+KAE1	short
+KCS1	long
+KEM1	S
+KRE33	Short
+KRS1	DAmP Short
+LCD1	Short
+LDB19	S
+LDB7	L
+LEA1	L
+LEO1	ss
+LRP1	S
+LSM7	sl
+LSM8	DAmP Long
+LST7	S
+MAK10	L
+MAK21	Short
+MAK3	L
+MAK31	L
+MCD4	DAmP Long
+MCM3	DAmP Long
+MCM6	DAmP Long
+MDM10	sl
+MDN1	DAmP Short
+MEC1	short
+MED1	sl
+MET18	L
+MET7	S
+MFT1	ss
+MLH1	sl
+MLP2	long
+MMM1	S
+MMS21	long
+MOT2	S
+MOT3	ss
+MRC1	ss
+MRE11	VS
+MRM2	sl
+MRPL3	Short
+KKQ8	S
+MRPL44	ss
+MRT4	S
+MTR3	DAmP Short
+NAM7	VS
+NAM9	DAmP Short
+NAT3	L
+NCP1	DAmP Long
+NET1	DAmP Short
+NFI1	sl
+NHP2	DAmP Long
+NMD2	S
+NOC4	DAmP Short
+NPL6	sl
+NPP1	L
+NRP1	sl
+NSR1	L
+NTR2	DAmP Short
+NUP60	ss
+NUT1	sl
+OGG1	L
+OPI1	S
+ORC5	DAmP Short
+PAF1	S
+PBP2	Long
+PCL6	Short
+PCP1	ss
+PDX3	S
+PEP3	S
+PFD1	sl
+PGD1	ss
+PHO80	S
+PHO85	S
+PHO87	L
+PHO88	ss
+PIF1	VL
+PIR1	Long
+PLC1	long
+PMT3	ss
+POL1	long
+POL12	long
+POL2	long
+POL3	long
+POL30	Long
+POL32	sl
+POP7	DAmP Short
+PPE1	L
+PRE2	DAmP Short
+PRE5	DAmP Short
+PRI1	DAmP Long
+PRO1	ss
+PRP22	DAmP Short
+PRP31	DAmP Short
+SMD1	DAmP Short
+PRP4	DAmP Short
+PRP43	DAmP Short
+PRS3	VS
+PRS5	ss
+PSF3	DAmP Short
+PSY4	ss
+PTC1	S
+PUB1	Long
+PXR1	short
+RAD17	short
+RAD27	VL
+RAD5	sl
+RAD50	VS
+RAD53	Short
+RAD6	S
+RAP1	long
+REB1	long
+REF2	sl
+RFA1	Short
+RFA2	Short
+RFM1	S
+RGR1	DAmP Short
+RIF1	VL
+RIF2	VL
+RNA14	DAmP Short
+RNA15	DAmP Short
+RNH201	VS
+RNR1	VS
+RNR2	short
+RNT1	long
+RPA14	sl
+RPB4	ss
+RPB5	DAmP Long
+RPB7	DAmP Short
+RPB9	S
+RPC10	Short
+RPL12B	S
+RPL13B	ss
+RPL1B	S
+RPL34B	S
+RPN12	DAmP Short
+RPN4	S
+RPN5	DAmP Short
+RPN6	DAmP Short
+RPN7	DAmP Short
+RPP1A	VS
+RPS10A	L
+RPS11B	sl
+RPS14A	L
+RPS16A	sl
+RPS16B	sl
+RPS17A	VL
+RPS17B	sl
+RPS18A	sl
+RPS19A	sl
+RPS21A	sl
+RPS22A	sl
+RPS23A	sl
+RPS23B	L
+RPS27B	sl
+RPS28B	sl
+RPS30B	sl
+RPS31	DAmP Long
+RPS4A	L
+RPS4B	sl
+RPT3	DAmP Short
+RPT5	DAmP Short
+STN1	L
+RSA1	VL
+RSC2	S
+RSC4	DAmP Long
+RSC8	DAmP Long
+RTF1	ss
+SAD1	DAmP Long
+SAH1	DAmP Short
+SAM35	DAmP Short
+SAP30	S
+SEC20	DAmP Long
+SEC63	DAmP Long
+SEM1	ss
+SEN54	DAmP Short
+SET1	Short
+SHP1	ss
+SIF2	Short
+SIN3	S
+SIR3	short
+SIR4	ss
+SIT4	S
+SIW14	ss
+SLA2	ss
+SLI15	sl
+SLX8	sl
+SMI1	S
+SMT3	DAmP Long
+SNC2	ss
+SNF7	S
+SNF8	ss
+SOH1	S
+SOL2	L
+SPN1	DAmP Long
+SPS100	ss
+SPT21	ss
+SRB2	ss
+SRB5	ss
+SRB8	VL
+SSE1	S
+SSH1	L
+SSN2	L
+SSN3	L
+SSN8	L
+STN1	DAmP Long
+STO1	L
+STP22	ss
+SUA5	Short
+SUM1	S
+SUR4	S
+SWA2	ss
+SWD1	short
+SWD3	short
+TAT2	sl
+TBF1	DAmP Short
+TEL1	VS
+TEL2	Short
+TEN1	long
+TFP1	Short
+TGS1	Long
+THP2	S
+TID3	DAmP Short
+TIF1	sl
+TIF2	Long
+TLC1	Short
+TOM5	ss
+TOP3	short
+TPD3	S
+TRK1	S
+TRS20	DAmP Long
+TRS23	DAmP Short
+TSR1	DAmP Short
+TUB2	DAmP Short
+UGO1	sl
+UPF3	S
+URE2	S
+VAM6	S
+VAM7	ss
+VPS15	S
+VPS20	Short
+VPS21	Short
+VPS25	ss
+VPS27	Short
+VPS28	ss
+VPS3	S
+VPS34	S
+VPS36	S
+VPS41	Short
+VPS53	Short
+VPS54	ss
+VPS75	S
+VPS9	S
+VRP1	Long
+WHI2	ss
+XDJ1	S
+XRS2	VS
+YBR284W	L
+YBR292C	sl
+YDJ1	sl
+YDL119C	ss
+CDC9	DAmP Long
+CDC9	DAmP Long
+YDR115W	ss
+NCB2	DAmP Short
+YDR532C	ss
+HYP2	VS
+YEL057C	S
+YGL039W	sl
+YGR042W	S
+YHL012W	sl
+YIL042C	ss
+YIL077C	ss
+BET4	DAmP Long
+YJR079W	sl
+YKU70	VS
+YKU80	VS
+SIK1	DAmP Long
+CDC42	DAmP Long
+TAD3	DAmP Long
+RPP0	DAmP Long
+SRC1	sl
+YMR269W	sl
+YOR008C-A	sl
+YOR066W	sl
+YOR1	L
+RFC1	DAmP Long
+YOR235W	sl
+YPL017C	sl
+YPL041C	S
+YPL068C	sl
+YPL105C	sl
+YPL144W	S
+YPP1	DAmP Short
+YPT7	ss
+YSP3	ss
+YTA7	S
+ZEO1	sl
+INO80	short
+HRR25	Short
+PDS5	short
+SWC4	VS
+RIM2	short
+MMF1	short
+RRP17	VS
+TRM5	short
+LSG1	Short
+RSM10	Short
+MRPS18	Short
+ESS1	Short
+RER2	Short
+SFT1	Short
+MTR10	Short
+CYR1	Long
+RIB5	ss
+PGS1	Short
+YFH1	Short
+SAH1	Short
+VHT1	short
+ATM1	short
+SUS1	slightly long
+RSC2	short
+ELO1	slightly short
+MRPL8	slightly short
+RRT5	slightly short
+SLM4	short
+TCO89	short
+NMA2	slightly short
+VPS51	slightly short
+KRE6	slightly short
+RTC1	slightly short
+AIM4	slightly short
+MED2	short
+GAS1	short
+SRP40	slightly long
+NPR3	slightly long
+KAP120	slightly long
+MDY2	slightly long
+QCR8	slightly long
+RSC1	Long
+LOS1	slightly long
+PPQ1	slightly long
+FUB1	slightly long
+CMK2	slightly long
+CPA1	slightly long
+YPK3	slightly long
+LSP1	slightly long
+UAF30	slightly long
+PXL1	slightly long
+GDB1	long
