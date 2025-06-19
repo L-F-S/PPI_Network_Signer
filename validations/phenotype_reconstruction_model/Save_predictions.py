@@ -17,7 +17,7 @@ Predict output and save TLM pathways genes based on predicted sign
 
 import os
 HOME_DIR  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-# HOME_DIR  =  "G:" +os.sep+"Il mio Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
+
 DIRECTED_DIR = HOME_DIR+"network_signing"+os.sep
 os.chdir(DIRECTED_DIR)
 import pandas  as pd
