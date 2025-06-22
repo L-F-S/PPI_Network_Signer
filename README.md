@@ -181,7 +181,7 @@ python functional_enrichment/analyze_negative_edges.py \
 Key parameters can be configured in `glob_vars.py`:
 
 - `ALPHA`: Network propagation smoothing parameter (default: 0.8)
-- `EPSILON`: Convergence threshold (default: 1e-5)
+- `EPSILON`: Convergence threshold (default: 0.01)
 - `TAU`: Sign assignment threshold (default: 0.5)
 - `MIN_PATHS`: Minimum shortest paths for phenotype reconstruction (default: 100)
 
