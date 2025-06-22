@@ -115,7 +115,7 @@ CV_LOG = 'crossvalidations_out_log.txt'
 
 
 ###############################################################################
-# VALIDATION VARIABLES
+# SIGNAL PHENOTYPE PREDICTION MODEL PARAMETERS
 ###############################################################################
 
 nSPS = 100
