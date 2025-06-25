@@ -167,25 +167,6 @@ python validation/crossvalidation/run_cv.py \
 - **Trained models**: `output/{species}/models/` - Pickled Random Forest models
 - **Features**: `output/{species}/features/` - Generated feature matrices
 
-## Advanced Features
-
-### Phenotype Reconstruction
-
-Reconstruct telomere length maintenance phenotypes:
-
-```bash
-python validation/TLM_phenotype/reconstruct_tlm.py
-```
-
-### Functional Enrichment
-
-Perform GO enrichment analysis on predicted negative edges:
-
-```bash
-python functional_enrichment/analyze_negative_edges.py \
-    -s S_cerevisiae \
-    -p output/S_cerevisiae/predictions/all_edges.sign
-```
 
 ## Parameters
 
