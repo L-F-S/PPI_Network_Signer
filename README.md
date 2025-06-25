@@ -22,15 +22,17 @@ SIGNAL (Sign Annotation aLgorithm) is a computational method for annotating prot
 - Python 3.9 or higher
 - Required Python packages:
   ```
-  numpy>=1.20.0
-  scipy>=1.7.0
-  pandas>=1.3.0
-  scikit-learn>=0.24.0
-  networkx>=2.6.0
-  matplotlib>=3.4.0
-  seaborn>=0.11.0
-  joblib>=1.0.0
-  pickle
+  gseapy==1.1.7
+  joblib==1.4.2
+  lxml==5.4.0
+  matplotlib==3.10.3
+  networkx==3.4.2
+  numpy==2.3.1
+  pandas==2.3.0
+  Requests==2.32.4
+  scikit_learn==1.7.0
+  scipy==1.16.0
+  statsmodels==0.14.4
   ```
 
 ### Setup
