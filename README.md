@@ -99,11 +99,20 @@ SIGNAL/
 │   │   └── predictions/          # Predicted signs
 │   └── H_sapiens/
 ├── scripts/                       # Utility scripts
-├── validation/                    # Validation pipelines
-│   ├── crossvalidation/          # Cross-validation scripts
-│   ├── KT_pair_reconstruction/   # Knockout-target reconstruction
-│   └── TLM_phenotype/            # Telomere length maintenance
+├── Validation/ 
+    ├──crossvalidations/
+    ├──phenotype_reconstruction_model/
+        ├──input/
+            TLM data input
+        ├──output/
+        ├──scripts/
+| other/
+    ├──ANAT_validation_pipeline/
 └── functional_enrichment/         # GO enrichment analysis
+    ├── data/
+    ├── imgs/
+    ├── modules/
+    ├── output/
 ```
 
 ## Detailed Usage
