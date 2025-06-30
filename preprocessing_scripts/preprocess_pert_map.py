@@ -33,7 +33,7 @@ SPECIES =  "S_cerevisiae" #
 
 HOME_DIR, _, _, _, NET_DIR, PRT_DIR, DICT_DIR, _, _, _, _, NET_FILE = init_all(SPECIES)
 
-RAW_DATA_DIR =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep +'Data'+os.sep+SPECIES+os.sep
+RAW_DATA_DIR = '\path\to\raw\file' 
 
 with open( DICT_DIR+'alias_2geneid.pkl', 'rb') as f:
     alias_2geneid = pickle.load(f)
@@ -55,7 +55,6 @@ if SPECIES == "S_cerevisiae":
 
 perturbations_map=get_perturbations_map(RAW_DATA_DIR, alias_2geneid,SPECIES, filename_of[PERT_MAP_NAME], translate=True)
 #%% 2 for human: using clustered_mean_gene_experssion data  from figures 2 and 4
-# TODO stick this into a function
 if SPECIES == "H_sapiens":
     
     PERT_MAP_NAME = 'CMGE'# ADPBH
@@ -101,12 +100,12 @@ if SPECIES == "H_sapiens":
     perturbations_map = perturbations_map[~perturbations_map.index.duplicated(keep=False)] #drop rows
 
 #%% 3 for reimand yeast perturb map:
-from preproc_utils import translate_axes
-import networkx as nx
-filename='reimand.txt'
-pert_graph = graph_from_dataframe(RAW_DATA_DIR, SPECIES, net_type="dir",filename=filename)
-perturbations_map=nx.to_pandas_adjacency(pert_graph).T
-perturbations_map=translate_axes(perturbations_map, alias_2geneid)
+# from preproc_utils import translate_axes
+# import networkx as nx
+# filename='reimand.txt'
+# pert_graph = graph_from_dataframe(RAW_DATA_DIR, SPECIES, net_type="dir",filename=filename)
+# perturbations_map=nx.to_pandas_adjacency(pert_graph).T
+# perturbations_map=translate_axes(perturbations_map, alias_2geneid)
 #%% turn perturbations_map into 2 dictionaries
 if SPECIES == 'S_cerevisiae' :
     threshold = 1.7
@@ -114,26 +113,6 @@ if SPECIES=='H_sapiens':
     threshold=0#1.009
 plus_targets_of_deletion, minus_targets_of_deletion = extract_knockotut_effect_pairs_from_data(perturbations_map, genes, threshold=threshold)
 print(len(plus_targets_of_deletion.keys()))
-#%% TESTS: filter: take only those with at least 3= and 3- genes:
-# k=1000
-# pl_t={}
-# mn_t={}
-# for p in plus_targets_of_deletion.keys():
-#     if (len(plus_targets_of_deletion[p])>=k and len(minus_targets_of_deletion[p])>=k):
-#             pl_t[p]=plus_targets_of_deletion[p].copy()
-#             mn_t[p]=minus_targets_of_deletion[p].copy()
-            
-# print(len(pl_t.keys()),len(mn_t.keys()))
-# #%% are the human t>1 and human k> perturbations similar?
-# shared=[]
-# for k in pl_t.keys():
-#     if k in plus_targets_of_deletion.keys():
-#         shared.append(k)
-        
-# print(len(shared))
-# f=open(OUTDIR+'shared_filtered_perturbations.txt','w')
-# f.write(' '.join([str(i) for i in shared]))
-# f.close()
 
 #%%
 with open(PRT_DIR+'plus_targets_'+PERT_MAP_NAME+'.pkl', 'wb') as f:
