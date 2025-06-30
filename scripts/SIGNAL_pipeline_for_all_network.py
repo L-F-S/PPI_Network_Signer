@@ -2,6 +2,8 @@
 """
 Created on Mon Sep 23 16:42:52 2024
 
+@author: L-F-S
+
 Generate SIGNAL scores
 for base network, using yeast data, and all trainign data
 WARNING: make sure input data in  glob_vars.py are the desired inputs
