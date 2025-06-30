@@ -2,7 +2,7 @@
 """
 Created on Mon May 10 15:32:32 2021
 
-@author: los4
+@author: L-F-S
 3.5 removed p_complex validations
 """
 
