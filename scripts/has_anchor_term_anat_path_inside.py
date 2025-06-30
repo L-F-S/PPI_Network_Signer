@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+@author: L-F-S
+
 Reformats ANAT network output
 
 python SIGNAL_scorenetworks_server.py filename
