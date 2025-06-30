@@ -16,8 +16,7 @@ import sys
 
 from glob_vars import SPECIES, HOME_DIR, TRAIN_DATA, PERT_MAP, LBL_DIR, EDGES_DIR,\
     FT_DIR, SIGNAL_DIR, MOD_DIR, PRT_DIR, NET_DIR,  NET_FILE,\
-    PROPAGATE_ALPHA, PROPAGATE_EPSILON ,PROPAGATE_ITERATIONS, DICT_DIR,\
-    DICT_FILE, ANAT_VAL_DIR, N_JOBS
+    PROPAGATE_ALPHA, PROPAGATE_EPSILON ,PROPAGATE_ITERATIONS, DICT_DIR, N_JOBS
 import pickle
 import pandas as pd
 import networkx as nx
@@ -63,16 +62,16 @@ netname=6#int(sys.argv[1])
 edges, edges_filename = load_net_edges(netname)
 edges=edges[0:16]
 
-# # GENERATE FEATURES FOR SIGNAL:
+#%% GENERATE FEATURES FOR SIGNAL:
 features_filename=edges_filename+'_'+PERT_MAP+'.ft'
 if not os.path.isfile(FT_DIR+features_filename):
     generate_SIGNAL_features(edges_filename)
 
-# Apply signal and predict SIGNAL score
+#%% Apply signal and predict SIGNAL score
 SIGNAL_scores_filename=edges_filename+'_'+PERT_MAP+'.sgnl'
 if not os.path.isfile(SIGNAL_DIR+SIGNAL_scores_filename):
     apply_SIGNAL(features_filename)
-print('SIGNAL scores saved to:',SIGNAL_scores_filename)
+print('SIGNAL scores saved to:', SIGNAL_scores_filename)
 
 # Print the results
 print_SIGNAL(SIGNAL_scores_filename)
