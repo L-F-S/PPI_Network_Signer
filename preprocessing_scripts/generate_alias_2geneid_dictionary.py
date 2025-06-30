@@ -21,8 +21,6 @@ import pickle
 import os
 import pandas as pd
 import urllib.request
-# os.chdir('../')
-# print(os.listdir())
 from glob_vars import SPECIES, DICT_DIR
 
 ###############################################################################
@@ -40,8 +38,6 @@ if SPECIES =='H_sapiens':
 # set to True to download NCBI's gene_info file
 download=True
 
-f=open(DICT_DIR+'alias_2geneid.pkl','rb')
-f.close()
 #%% 
 
 ###############################################################################
