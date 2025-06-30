@@ -33,11 +33,6 @@ def get_train_data_names(species):
 
 # PATHS
 HOME_DIR = os.path.dirname(os.path.abspath(__file__))+os.sep
-# HOME_DIR  =  '/home/bnet/lorenzos/signed/signedv3/'
-# DRIVE_PATH  =  "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep 
-# DRIVE_PATH=  'G:'+os.sep+'Il Mio Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep
-# HOME_DIR  =  DRIVE_PATH+'network_signing'+os.sep
-# sys.path.append(HOME_DIR)
 
 # input dirs:
 LBL_DIR = HOME_DIR+'input'+os.sep+SPECIES+os.sep +'labels'+os.sep 
