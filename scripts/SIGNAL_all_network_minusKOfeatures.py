@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on %(date)s
+@author: L-F-S
 
-@author: %(username)s
 
 utility script for KT pairs reconstuction validation 
 
@@ -53,7 +52,7 @@ import pickle
 DATE=str(date.today())
 
 if SPECIES == 'S_cerevisiae':
-    datasets = ['kegg','kpi','ubiq']
+    datasets = ['kegg','kpi','ubinet2']
 else:
     datasets = ['kegg','PSP','depod','ubinet2']
 dataset_name = '_'.join(datasets)
