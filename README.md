@@ -73,7 +73,7 @@ SIGNAL requires three main types of input data:
 
 1. **Base PPI Network**: Tab-separated file with columns: source, target. Convert to pickled binary with preprocessing_scripts/preprocess_network.py before launching SIGNAL
 2. **Signed Training Data**: Known signed interactions in `.lbl.tsv` format
-3. **Knockout Signatures**: Gene expression changes following gene knockouts. Dictionaries of positive and negative perturbations
+3. **Knockout Signatures**: Gene expression changes following gene knockouts. Dictionaries of positive and negative perturbations. Preprocess with preprocessing_scripts/preprocess_pert_map.py
 
 See `input/S_cerevisiae/` for example data formats.
 
