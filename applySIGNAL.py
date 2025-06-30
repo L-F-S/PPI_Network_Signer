@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on %(date)s
 
-@author: %(username)s
+@author:L-F-S
 
 utility script for KT pairs reconstuction validation 
 
