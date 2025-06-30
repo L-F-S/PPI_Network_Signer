@@ -2,7 +2,7 @@
 """
 Created on Mon Aug 23 13:51:18 2021
 
-@author: los4
+@author: L-F-S
 """
 import pandas as pd
 import collections
