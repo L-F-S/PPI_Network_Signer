@@ -33,7 +33,7 @@ SPECIES =  "S_cerevisiae" #
 
 HOME_DIR, _, _, _, NET_DIR, PRT_DIR, DICT_DIR, _, _, _, _, NET_FILE = init_all(SPECIES)
 
-RAW_DATA_DIR = '\path\to\raw\file' 
+RAW_DATA_DIR = '\path\to\raw\file ('i.e. supplementary_data_s1.cdt from Kemmeren et al.)' 
 
 with open( DICT_DIR+'alias_2geneid.pkl', 'rb') as f:
     alias_2geneid = pickle.load(f)
