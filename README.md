@@ -64,7 +64,7 @@ python applySIGNAL_server.py -s S_cerevisiae -e path/to/edges.tsv
 
 3. **Full pipeline with visualization**:
 ```bash
-python scripts/run_full_pipeline.py -s S_cerevisiae
+python scripts/SIGNAL_pipeline_for_all_network.py -s S_cerevisiae
 ```
 
 ### Input Data Format
