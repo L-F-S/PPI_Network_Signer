@@ -308,8 +308,8 @@ def create_the_features_different_knockouts_parallel_optimized(N_JOBS, edges, pl
 #     Y = (1 - PROPAGATE_ALPHA) * F_t
 
 #     for _ in range(PROPAGATE_ITERATIONS):
-#         F_t_1 = F_t  #05 045 2022v add transpose perche adesso matrix e  una np.matrix e bo se no mi da errore
-#         F_t =  PROPAGATE_ALPHA*matrix.dot(F_t_1) + Y #105 094 2022, rimossa la mia modifica in cui mettevo PROPAGATE_ALPHA* matrix qui (e lhor rimesso nel return della funzione sopra) perchedava errore se matrix e' np.matrix, e non scipy.sparse. cazzo. CAZZO. LOL
+#         F_t_1 = F_t 
+#         F_t =  PROPAGATE_ALPHA*matrix.dot(F_t_1) + Y
         
 #         if math.sqrt(cp.linalg.norm(F_t_1 - F_t)) < PROPAGATE_EPSILON:
 #             break
@@ -380,4 +380,5 @@ def create_the_features_different_knockouts_parallel_optimized(N_JOBS, edges, pl
   
       
 #   return features_matrix
+
 
