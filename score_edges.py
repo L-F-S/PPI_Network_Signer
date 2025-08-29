@@ -51,14 +51,13 @@ def propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, seeds, m
     '''Propagate from seeds inside matrix
     gene indexes is a dictinary mapping gene names to their indexes in matrix'''
     
-    # matrix = np.array(matrix)
     P_t = np.zeros(num_genes)
     P_t[[gene_indexes[seed] for seed in seeds if seed in gene_indexes]] = 1
     Y = (1 - PROPAGATE_ALPHA) * P_t
 
     for _ in range(PROPAGATE_ITERATIONS):
-        P_t_1 = P_t  #05 045 2022v add transpose perche adesso matrix e  una np.matrix e bo se no mi da errore
-        P_t =  PROPAGATE_ALPHA*matrix.dot(P_t_1) + Y #105 094 2022, rimossa la mia modifica in cui mettevo PROPAGATE_ALPHA* matrix qui (e lhor rimesso nel return della funzione sopra) perchedava errore se matrix e' np.matrix, e non scipy.sparse.
+        P_t_1 = P_t 
+        P_t =  PROPAGATE_ALPHA*matrix.dot(P_t_1) + Y 
         
         if math.sqrt(scipy.linalg.norm(P_t_1 - P_t)) < PROPAGATE_EPSILON:
             break
@@ -380,5 +379,6 @@ def create_the_features_different_knockouts_parallel_optimized(N_JOBS, edges, pl
   
       
 #   return features_matrix
+
 
 
