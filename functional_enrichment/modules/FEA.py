@@ -406,3 +406,4 @@ with open(DICT_DIR+'geneid_2symbol.pkl','rb') as f:
 current_term='protein import into peroxisome matrix, docking'
 
 set([ geneid_2symbol[int(x)] for x in go_to_gene[name_to_go[current_term]]])
+
