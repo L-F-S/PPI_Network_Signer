@@ -365,7 +365,6 @@ def get_perturbations_map(data_dir, alias_2geneid,species, filename, translate=T
 
 def extract_knockotut_effect_pairs_from_data(perturbation_map, genes, threshold=1.7):
     # See original data refs. for threshold value
-# todo, refactor: this must be faster cos with human it's super slow. todo. threshold for human??
     plus_targets_of_deletion={}
     minus_targets_of_deletion={}
     perturb_map = perturbation_map.copy()
@@ -567,3 +566,4 @@ def write(OUTDIR, labels_of, edge_weights_of):
         weight.to_csv(OUTDIR+dataname+'.w8.tsv', sep='\t', header=None, index=False)
 
         
+
