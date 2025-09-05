@@ -22,20 +22,16 @@ import pickle
 from preproc_utils import  add_edges_from_labels,graph_from_dataframe,\
     preprocess_signed_datasets, readname2geneid, get_perturbations_map,\
          extract_knockotut_effect_pairs_from_data
-from glob_vars import init_all
-         
+from glob_vars import HOME_DIR, NET_DIR, PRT_DIR, DICT_DIR, DICT_FILE, NET_FILE, SPECIES
 
 ##############################################################################
 #  INPUTS
 ##############################################################################
-# SPECIES = "H_sapiens"#
-SPECIES =  "S_cerevisiae" #
 
-HOME_DIR, _, _, _, NET_DIR, PRT_DIR, DICT_DIR, _, _, _, _, NET_FILE = init_all(SPECIES)
 
-RAW_DATA_DIR = '\path\to\raw\file ('i.e. supplementary_data_s1.cdt from Kemmeren et al.)' 
+RAW_DATA_DIR = '\path\to\raw\file' # "G:" +os.sep+"My Drive"+ os.sep +"SECRET-ITN" + os.sep +"Projects" + os.sep +'Data'+os.sep+SPECIES+os.sep
 
-with open( DICT_DIR+'alias_2geneid.pkl', 'rb') as f:
+with open( DICT_DIR+DICT_FILE, 'rb') as f:
     alias_2geneid = pickle.load(f)
 #%%
 # Load Network
@@ -122,4 +118,5 @@ with open(PRT_DIR+'minus_targets_'+PERT_MAP_NAME+'.pkl','wb') as f:
 #%%
 print("\n--------------- DATA PREPROCESSED SUCCESFULLY---------------")
 print('- Positive knockout experiment targets:', len(plus_targets_of_deletion),'\n- Negative knockout experiment targets:',len(minus_targets_of_deletion))
+
 
