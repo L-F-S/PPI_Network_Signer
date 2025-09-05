@@ -118,5 +118,12 @@ with open(PRT_DIR+'minus_targets_'+PERT_MAP_NAME+'.pkl','wb') as f:
 #%%
 print("\n--------------- DATA PREPROCESSED SUCCESFULLY---------------")
 print('- Positive knockout experiment targets:', len(plus_targets_of_deletion),'\n- Negative knockout experiment targets:',len(minus_targets_of_deletion))
+print('Total number of target genes:')
+all_genes=set()
+for source, targets in plus_targets_of_deletion.items():
+    all_genes.update(targets)
+for source, targets in minus_targets_of_deletion.items():
+    all_genes.update(targets)
+print(len(all_genes))
 
 
