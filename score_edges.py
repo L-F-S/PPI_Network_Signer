@@ -283,89 +283,121 @@ def create_the_features_different_knockouts_parallel_optimized(N_JOBS, edges, pl
       
   return features_matrix
 
-#### cupy GPU optimized calculations (requires cupy installation)
+### cupy GPU optimized calculations (requires cupy installation)
 
-# import cupy as cp
+try:
+    import cupy as cp
+    import cupyx.scipy.sparse as cpx_sp
+except Exception:
+    cp = None
+    cpx_sp = None
 
-# def propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, seeds, matrix, gene_indexes, num_genes):
-#     '''Propagate from seeds inside matrix
-#     gene indexes is a dictinary mapping gene names to their indexes in matrix
-#     matrix must be a cupyx.scipy.sparse._csr.csr_matrix'''
+def _to_cupy_csr(M):
+    '''Move matrices onto device using cupy, if possible'''
+    if cp is None or cpx_sp is None:
+        raise RuntimeError("GPU requested but CuPy/cupyx is unavailable.")
+    if isinstance(M, cpx_sp.csr_matrix):
+        return M
+    try:
+        return cpx_sp.csr_matrix(M)  # handles SciPy CSR/CSC/COO
+    except Exception:
+        # fallback for dense NumPy
+        return cpx_sp.csr_matrix(cp.asarray(M))
 
-#     if not type(matrix) == cp.sparse._csr.csr_matrix:
-#         return ('ERROR! matrix is not a cp.sparse.csr.csr_matrix', type(matrix))
+def propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, seeds, matrix, gene_indexes, num_genes):
+    '''Propagate from seeds inside matrix
+    gene indexes is a dictinary mapping gene names to their indexes in matrix
+    matrix must be a cupyx.scipy.sparse._csr.csr_matrix'''
+
+    if cp is None or cpx_sp is None:
+        raise RuntimeError("GPU engine requested but CuPy is not available.")
     
-#     # matrix = np.array(matrix)
-#     F_t = cp.zeros(num_genes)
-#     F_t[[gene_indexes[seed] for seed in seeds if seed in gene_indexes]] = 1
-#     Y = (1 - PROPAGATE_ALPHA) * F_t
+    F_t = cp.zeros((num_genes,), dtype=cp.float32)
+    F_t[[gene_indexes[seed] for seed in seeds if seed in gene_indexes]] = 1
+    Y = (1.0 - PROPAGATE_ALPHA) * F_t
 
-#     for _ in range(PROPAGATE_ITERATIONS):
-#         F_t_1 = F_t
-#         F_t =  PROPAGATE_ALPHA*matrix.dot(F_t_1) + Y
+    for _ in range(PROPAGATE_ITERATIONS):
+        F_t_1 = F_t
+        F_t =  PROPAGATE_ALPHA*matrix.dot(F_t_1) + Y
         
-#         if math.sqrt(cp.linalg.norm(F_t_1 - F_t)) < PROPAGATE_EPSILON:
-#             break
-#     return F_t
+        if cp.linalg.norm(F_t_1 - F_t) < float(PROPAGATE_EPSILON**2):
+            break
+    return F_t
 
-# def F_score_gpu(defective_normalized_matrix, prop_edge_fwd, edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
-#   """Combines row and column scores to get the element score.
-#   defective_normalized_matrix: row-wise defective normalized matrix. Previously calculated because it is invariant across rows
-#   prop_edge_fwd: column-wise array of propagation scores from knockout K. Previously calculated because it is invariant across columns
-#   source: knockout K gene id
-#   """
-#   prop_noedge_fwd = propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON,{source}, defective_normalized_matrix, gene_indexes,num_genes)
+def score_gpu(prop_all, prop_noedge,genes_indexes,\
+              edge=None):
+    '''Computes F score 
+    returns a float'''
+    
+    # actually using this. positive_foldchange_genes_indexes can actually be negative, depending on what you input
+    if not genes_indexes:
+        raise ValueError('Empty list of gene targets', genes_indexes, edge)    
+    
+    # genes_indexes = cp.asarray(genes_indexes, dtype=cp.int32)
+    diff=prop_all[genes_indexes]-prop_noedge[genes_indexes]
+    return diff.mean(dtype=cp.float32)
 
-#   score_of_cell_plus = score(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in plus_targets_of_deletion[source]],edge=edge)
-#   score_of_cell_minus = score(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in minus_targets_of_deletion[source]],edge=edge)
+def F_score_gpu(defective_normalized_matrix, prop_edge_fwd, edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
+  """Combines row and column scores to get the element score.
+  defective_normalized_matrix: row-wise defective normalized matrix. Previously calculated because it is invariant across rows
+  prop_edge_fwd: column-wise array of propagation scores from knockout K. Previously calculated because it is invariant across columns
+  source: knockout K gene id
+  """
+  prop_noedge_fwd = propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON,{source}, defective_normalized_matrix, gene_indexes,num_genes)
 
-#   return score_of_cell_plus, score_of_cell_minus
+  score_of_cell_plus = score_gpu(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in plus_targets_of_deletion[source]],edge=edge)
+  score_of_cell_minus = score_gpu(prop_edge_fwd, prop_noedge_fwd,[gene_indexes[x] for x in minus_targets_of_deletion[source]],edge=edge)
 
-# def create_the_features_different_knockouts_iterative_optimized_gpu(edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
-#   """Fills a 2d feature matrix of SIGNAL features. does less steps than the old create_the_features_different_knockouts_iterative
+  return score_of_cell_plus, score_of_cell_minus
+
+def create_the_features_different_knockouts_iterative_optimized_gpu(edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
+  """Fills a 2d feature matrix of SIGNAL features. does less steps than the old create_the_features_different_knockouts_iterative
   
-#   raw_matrix and matrix must be cupy cp.sparse._csr.csr_matrix"""
+  raw_matrix and matrix must be cupy cp.sparse._csr.csr_matrix"""
 
-#   # Calculate row and column scores on the GPU
-#   row_names=edges
-#   col_names=list(plus_targets_of_deletion.keys())+list(minus_targets_of_deletion.keys()) #they are the same keys repeated
-#   row_defective_matrices = [defective_matrix_wrapper(raw_matrix, matrix, i, gene_indexes) for i in row_names] # cupy cannot hold a list of sparse matrices object, so we keep it as a list
-#   col_propagation_scores = [propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {j}, matrix, gene_indexes, num_genes) for j in col_names]
-#   # Create an empty matrix on the GPU
-#   features_matrix = cp.zeros((len(row_names), len(col_names)), dtype=np.float32)
+  # Calculate row and column scores on the GPU
+  row_names=edges
+  col_names=list(plus_targets_of_deletion.keys())+list(minus_targets_of_deletion.keys()) #they are the same keys repeated
+  raw_matrix = _to_cupy_csr(raw_matrix)
+  matrix = _to_cupy_csr(matrix)
+  row_defective_matrices = [_to_cupy_csr(defective_matrix_wrapper(raw_matrix, matrix, i, gene_indexes)) for i in row_names] # cupy cannot hold a list of sparse matrices object, so we keep it as a list
+  
+  col_propagation_scores = [propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {j}, matrix, gene_indexes, num_genes) for j in col_names]
+  # Create an empty matrix on the GPU
+  features_matrix = cp.zeros((len(row_names), len(col_names)), dtype=np.float32)
 
-#   # Fill the matrix element-wise using broadcasting and the combine_scores function
-#   for i, edge in enumerate(edges):
-#     # fill 2 column indexes at a time
-#     for j, source in enumerate(col_names[:int(len(col_names)/2)]):
-#       features_matrix[i, [j,j+int(len(col_names)/2)]] = F_score_gpu(row_defective_matrices[i], col_propagation_scores[j], edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
+  # Fill the matrix element-wise using broadcasting and the combine_scores function
+  for i, edge in enumerate(edges):
+    # fill 2 column indexes at a time
+    for j, source in enumerate(col_names[:int(len(col_names)/2)]):
+      features_matrix[i, [j,j+int(len(col_names)/2)]] = F_score_gpu(row_defective_matrices[i], col_propagation_scores[j], edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
       
-#   # Transfer the filled matrix back to the CPU as a NumPy array
-#   return cp.asnumpy(features_matrix)
+  # Transfer the filled matrix back to the CPU as a NumPy array
+  return cp.asnumpy(features_matrix)
 
-# def create_the_features_different_knockouts_parallel_optimized_gpu(N_JOBS, edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
-#   """Fills a 2d feature matrix of SIGNAL features. does less steps than the old create_the_features_different_knockouts_iterative"""
+def create_the_features_different_knockouts_parallel_optimized_gpu(N_JOBS, edges, plus_targets_of_deletion, minus_targets_of_deletion, raw_matrix, matrix, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
+  """Fills a 2d feature matrix of SIGNAL features. does less steps than the old create_the_features_different_knockouts_iterative"""
 
-#   # Calculate row and column scores on the GPU
-#   row_names=edges
-#   col_names=list(plus_targets_of_deletion.keys())+list(minus_targets_of_deletion.keys()) #they are the same keys repeated
-#   row_defective_matrices = [defective_matrix_wrapper(raw_matrix, matrix, i, gene_indexes) for i in row_names] # cupy cannot hold a list of sparse matrices object, so we keep it as a list
-#   col_propagation_scores = [propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {j}, matrix, gene_indexes, num_genes) for j in col_names]
+  # Calculate row and column scores on the GPU
+  row_names=edges
+  col_names=list(plus_targets_of_deletion.keys())+list(minus_targets_of_deletion.keys()) #they are the same keys repeated
+  row_defective_matrices = [defective_matrix_wrapper(raw_matrix, matrix, i, gene_indexes) for i in row_names] # cupy cannot hold a list of sparse matrices object, so we keep it as a list
+  col_propagation_scores = [propagate_gpu(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, {j}, matrix, gene_indexes, num_genes) for j in col_names]
 
-#   # Fill the matrix element-wise using broadcasting and the combine_scores function
+  # Fill the matrix element-wise using broadcasting and the combine_scores function
 
-#   def fill_row(i,edge,row_defective_matrices, col_propagation_scores, col_names, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
-#     row_plus, row_minus= [], []
-#     for j, source in enumerate(col_names[:int(len(col_names)/2)]):
-#       score_of_cell_plus, score_of_cell_minus = F_score_gpu(row_defective_matrices[i], col_propagation_scores[j], edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
-#       row_plus.append(cp.asnumpy(score_of_cell_plus))
-#       row_minus.append(cp.asnumpy(score_of_cell_minus))
-#     return row_plus+ row_minus
+  def fill_row(i,edge,row_defective_matrices, col_propagation_scores, col_names, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON):
+    row_plus, row_minus= [], []
+    for j, source in enumerate(col_names[:int(len(col_names)/2)]):
+      score_of_cell_plus, score_of_cell_minus = F_score_gpu(row_defective_matrices[i], col_propagation_scores[j], edge, source, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)
+      row_plus.append(cp.asnumpy(score_of_cell_plus))
+      row_minus.append(cp.asnumpy(score_of_cell_minus))
+    return row_plus+ row_minus
   
 
-#   features_matrix = Parallel(n_jobs=N_JOBS)(delayed(fill_row)\
-#                                 (i,edge,row_defective_matrices, col_propagation_scores, col_names, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)\
-#                                     for i, edge in enumerate(edges))
+  features_matrix = Parallel(n_jobs=N_JOBS)(delayed(fill_row)\
+                                (i,edge,row_defective_matrices, col_propagation_scores, col_names, plus_targets_of_deletion, minus_targets_of_deletion, gene_indexes, num_genes, PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON)\
+                                    for i, edge in enumerate(edges))
   
       
-#   return features_matrix
+  return features_matrix
