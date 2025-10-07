@@ -59,6 +59,18 @@ with open(KO_VAL_OUT+os.sep+val_data_name+spname_short+dataset_name+'_'+PERT_MAP
     TLMS=pickle.load(f)
 with open(KO_VAL_OUT+os.sep+val_data_name+spname_long+dataset_name+'_'+PERT_MAP+'.pkl', 'rb') as f:
     TLML=pickle.load(f)
+
+#%% Print genes info
+def get_terminal_genes(SPs_dictionaries):
+    terminal_genes=set()
+    for terminals_dict in SPs_dictionaries.values():
+        terminal_genes.update(terminals_dict.keys())
+    return terminal_genes
+short_genes = get_terminal_genes(TLMS)
+long_genes = get_terminal_genes(TLML)
+#%%
+print('short phenotype genes:', short_tags,len(short_genes))
+print('long phenotype genes:', long_tags,len(long_genes))
 #%%
 
 Y_true, Y_pred  = predict_path_sign_TLM_paths(TLMS, TLML, tau, n_SPs=nSPS, e=epsilon)
