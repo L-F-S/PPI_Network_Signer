@@ -6,8 +6,6 @@
 Predict sign of leftout knockout/target pairs
     To run with the output of PARALLELgenerate_SP_scores.py
 
-Reconstruct TLM phenotype 
-    To run with the output of generate_SP_scores_TLM_inputs.py
 """
 
 import os
@@ -119,3 +117,4 @@ x_ticks_p, y_ticks_p, heatmap_p = heatmap_from_dataframe(Y_pred_ts)
 build_figure_true_vs_pred(x_ticks_t, y_ticks_t, heatmap_t,\
                               x_ticks_p, y_ticks_p, heatmap_p,\
                                   figname='testone',savefig=True)
+
