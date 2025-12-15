@@ -18,9 +18,8 @@ import  matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 #%%
-DRIVE_PATH='G:'+os.sep+'Il Mio Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep
+DRIVE_PATH='home\dir'
 
-# DRIVE_PATH='G:'+os.sep+'My Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep
 sys.path.append(DRIVE_PATH+'network_signing'+os.sep)
 from glob_vars import SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR,ENRICHMENT_OUT, DICT_FILE, DICT_DIR,\
@@ -146,4 +145,5 @@ _, subnet = build_adjacent_net(net, genes_list)
 graph_with_gene_names = nx.relabel_nodes(subnet, lambda x: geneid_2symbol[x], copy=True)
 
 draw_SIGNAL_network(graph_with_gene_names, genes_list, figname='mitochondrion_receptors_SIGNAL_net', e=e, savefig=False)
+
 
