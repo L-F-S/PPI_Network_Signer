@@ -23,9 +23,7 @@ matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
 #%%
-DRIVE_PATH='G:'+os.sep+'Il Mio Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep
-
-# DRIVE_PATH='G:'+os.sep+'My Drive'+os.sep+'SECRET-ITN'+os.sep+'Projects'+os.sep
+DRIVE_PATH='home\dir'
 sys.path.append(DRIVE_PATH+'network_signing'+os.sep)
 from glob_vars import SPECIES, TRAIN_DATA, PERT_MAP, HOME_DIR, LBL_DIR,\
     EDGES_DIR, FT_DIR, SIGNAL_DIR, MOD_DIR,ENRICHMENT_OUT, DICT_FILE, DICT_DIR,\
@@ -406,4 +404,5 @@ with open(DICT_DIR+'geneid_2symbol.pkl','rb') as f:
 current_term='protein import into peroxisome matrix, docking'
 
 set([ geneid_2symbol[int(x)] for x in go_to_gene[name_to_go[current_term]]])
+
 
