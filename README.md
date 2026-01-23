@@ -5,7 +5,10 @@
 
 ## Overview
 
+Code repository for SIGNAL model, available [here](https://academic.oup.com/bioinformatics/article/42/1/btaf674/8402135).
+
 SIGNAL (Sign Annotation aLgorithm) is a computational method for annotating protein-protein interaction (PPI) networks with activation/repression signs based on cause-effect data. The algorithm uses network propagation techniques to quantify the influence of each edge on gene expression changes, leveraging the observation that negatively signed edges have greater influence on pathway effects compared to positive ones.
+
 
 ## Features
 
@@ -181,6 +184,11 @@ Key parameters can be configured in `glob_vars.py`:
 ## Contact
 
 - **Lead Developer**: Lorenzo Federico Signorini
+
+## Cite this work
+Signorini, Lorenzo Federico, Martin Kupiec, and Roded Sharan.
+"Signing protein–protein interaction networks."
+Bioinformatics 42.1 (2026): btaf674.
 
 ## Acknowledgments
 
