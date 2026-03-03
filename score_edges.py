@@ -59,7 +59,7 @@ def propagate(PROPAGATE_ALPHA, PROPAGATE_ITERATIONS, PROPAGATE_EPSILON, seeds, m
         P_t_1 = P_t  
         P_t =  PROPAGATE_ALPHA*matrix.dot(P_t_1) + Y 
         
-        if math.sqrt(scipy.linalg.norm(P_t_1 - P_t)) < PROPAGATE_EPSILON:
+        if scipy.linalg.norm(P_t_1 - P_t) < PROPAGATE_EPSILON:
             break
     return P_t
 
